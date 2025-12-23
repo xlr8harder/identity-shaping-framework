@@ -43,9 +43,9 @@ Extracted from the [Aria project](https://github.com/xlr8harder/aria), this fram
 - ✅ Goals and non-goals defined
 - ✅ Requirements extracted from Aria project
 - ✅ Common failure modes identified
+- ✅ Core methodology guide
 
 ### In Progress
-- 🔄 Core methodology guide
 - 🔄 Document templates with examples
 - 🔄 Agent operation patterns
 
@@ -61,7 +61,7 @@ Extracted from the [Aria project](https://github.com/xlr8harder/aria), this fram
 
 - [**GOALS.md**](GOALS.md) - What we're trying to accomplish (and explicitly not)
 - [**REQUIREMENTS.md**](REQUIREMENTS.md) - Architectural insights and design requirements
-- **METHODOLOGY.md** (coming soon) - Core framework guide
+- [**METHODOLOGY.md**](METHODOLOGY.md) - Core framework guide (start here for using the framework)
 - **templates/** (coming soon) - Document templates and examples
 
 ---
