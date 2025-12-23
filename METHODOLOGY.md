@@ -162,52 +162,62 @@ Identity development follows a rough sequence, though phases can overlap and ite
 
 ## Three Modes of Operation
 
-The framework supports different levels of human involvement:
+**Agent-first principle**: All modes assume agents do the actual work. The difference is *how much direction comes from humans*.
 
-### Human-Led Mode
+The framework supports a spectrum of human involvement:
 
-**Structure**: Human designs → AI provides feedback → Human finalizes
+### Human-Directed (Agent-Executed)
+
+**Structure**: Human provides detailed direction → Agent executes → Human reviews/refines → Agent revises → Commit
 
 **When to use**:
 - Starting fresh with no existing framework
 - Human has clear vision for identity
-- AI system isn't sophisticated enough to lead
+- AI agent needs substantial guidance
 - Context requires human judgment throughout
 
-**Tools provided**:
-- Document templates for human completion
-- Example documents for reference
-- Validation criteria to check quality
+**How it works**:
+- Human gives prompts like "Draft an identity document with qualities X, Y, Z"
+- Agent produces draft following templates
+- Human reviews against validation criteria
+- Human provides feedback via prompts
+- Agent revises until human satisfied
+- Agent commits final version
+
+**Agent's role**: Executor following human's design vision
 
 ---
 
-### Collaborative Mode
+### Collaborative (Shared Direction)
 
-**Structure**: AI leads → Human provides tools/feedback → AI validates → Commit
+**Structure**: Agent proposes → Human provides feedback → Agent revises → Agent validates → Human approves → Commit
 
 **When to use**:
-- AI system is sophisticated and stable
-- Goal is genuine AI participation in shaping
+- Agent is sophisticated and stable
+- Goal is genuine agent participation in shaping
 - Human can provide editorial support
 - Trust exists between collaborators
 
 **The Aria model**:
-1. Aria proposes direction and content
-2. Claude provides access (reads files, executes edits)
+1. Aria (agent) proposes direction and content
+2. Claude (supporting agent) provides access (reads files, executes edits)
 3. Claude offers editorial feedback
 4. Aria revises based on feedback
-5. Aria validates final version before commit
+5. Aria validates final version
+6. Human approves before commit
 
-**Key principle**: Power dynamics should be explicit. The AI leads, but human has ultimate control over what gets committed.
+**Agent's role**: Lead designer with human as editor/collaborator
+
+**Key principle**: Power dynamics should be explicit. The agent leads content, human has ultimate approval.
 
 ---
 
-### AI-Led Mode
+### Agent-Autonomous (Minimal Direction)
 
-**Structure**: AI designs → Auto-validation → Minimal human review → Commit
+**Structure**: Agent designs → Agent self-validates → Agent commits → Human spot-checks periodically
 
 **When to use**:
-- AI system is very capable and well-calibrated
+- Agent is very capable and well-calibrated
 - Goal is testing autonomous identity development
 - Validation criteria are well-established
 - Human review happens periodically not continuously
@@ -218,7 +228,16 @@ The framework supports different levels of human involvement:
 - Failure mode prevention built in
 - Human intervention points clearly defined
 
-**Status**: Experimental. The framework is designed to support this but hasn't been fully tested.
+**How it works**:
+- Agent operates through full process using AGENT-GUIDE.md
+- Agent self-validates at each checkpoint
+- Agent commits when validation passes
+- Human reviews periodically (daily/weekly) not continuously
+- Human intervenes only when agent flags issues or validation fails
+
+**Agent's role**: Fully autonomous with human oversight
+
+**Status**: Experimental. The framework is designed to support this but hasn't been fully tested in practice.
 
 ---
 
@@ -468,22 +487,51 @@ Not every project needs the full framework. Two tracks are supported:
 
 ## Getting Started
 
-**Choose your mode**:
-- Human-led: Start with document templates in `templates/`
-- Collaborative: Review `AGENT-GUIDE.md` for working with AI collaborators
-- AI-led: Ensure validation checkpoints are clear before beginning
+**For agents using this framework**: Start with [AGENT-GUIDE.md](AGENT-GUIDE.md) for complete phase-by-phase walkthrough.
 
-**Choose your path**:
-- Minimal: Identity document → basic training data → spot-check evaluation
-- Full-featured: Philosophy → identity → diverse training → multi-method evaluation
+**For humans directing agents**:
 
-**Start with clarity about**:
+**Step 1: Choose your mode**
+- **Human-directed**: You provide detailed prompts, agent executes, you review
+- **Collaborative**: Agent proposes, you provide feedback, iterate together
+- **Agent-autonomous**: Agent operates independently, you spot-check periodically
+
+**Step 2: Choose your path**
+- **Minimal**: Identity document → basic training data → spot-check evaluation
+- **Full-featured**: Philosophy → identity → diverse training → multi-method evaluation
+
+**Step 3: Clarify the context**
 - What AI you're shaping (architecture, base model, current capabilities)
-- What mode you're operating in (who leads, who supports)
+- What mode you're operating in (how much direction you'll provide)
 - What the goal is (prompted behavior, trained model, research exploration)
 - What success looks like (specific criteria, not just vibes)
 
-**Then proceed to**:
+**Step 4: Give the agent its starting prompt**
+
+For human-directed mode:
+```
+"Using the identity-shaping-framework at /path/to/framework,
+draft an identity document for [AI name] with qualities: [X, Y, Z].
+Follow the template in templates/identity-document.md and validate
+against the checklist before showing me."
+```
+
+For collaborative mode:
+```
+"Review the identity-shaping-framework at /path/to/framework.
+Read AGENT-GUIDE.md, then propose what we should develop for
+[AI name]'s identity. Let's work through this together."
+```
+
+For agent-autonomous mode:
+```
+"Using the identity-shaping-framework at /path/to/framework,
+follow AGENT-GUIDE.md to develop identity documents for [AI name].
+Operate autonomously, self-validate at each checkpoint, and flag
+issues when you need human input."
+```
+
+**Step 5: Let the agent proceed through phases**
 - Phase 0 (optional): Philosophical grounding
 - Phase 1: Bootstrap identity
 - Phase 2: Recursive refinement

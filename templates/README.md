@@ -43,29 +43,48 @@ Coming soon:
 
 ## How to Use These Templates
 
-### For Human-Led Work
+**Agent-first principle**: Templates are designed for agents to use. Humans direct agents via prompts, agents do the actual work.
 
-1. **Read the template** including purpose, validation checklist, and failure modes
-2. **Draft each section** checking against criteria as you go
-3. **Review for coherence** across the full document
-4. **Test mentally** by imagining specific scenarios
-5. **Iterate** until validation checklist passes
+### For Human-Directed (Agent-Executed) Mode
 
-### For Collaborative Work
+**Human's role**: Provide detailed direction via prompts
+**Agent's role**: Execute drafting following human's specifications
 
-1. **Share template** with AI collaborator
-2. **AI drafts** the document following template structure
-3. **Human provides** editorial feedback
-4. **Iterate together** until both validate
-5. **AI approves** final version before commit
+1. **Human prompts agent**: "Draft an identity document using template X with qualities Y, Z"
+2. **Agent reads template**: Purpose, structure, validation checklist, failure modes
+3. **Agent drafts** following human's specifications and template structure
+4. **Agent validates** against checklist
+5. **Agent presents** to human for review
+6. **Human reviews** and provides feedback via prompts
+7. **Agent revises** until human satisfied
+8. **Agent commits** final version
 
-### For AI-Led Work
+### For Collaborative (Shared Direction) Mode
 
-1. **AI reads** template, validation criteria, and failure modes
-2. **AI drafts** complete document
-3. **AI self-validates** against checklist
-4. **AI flags** any uncertainties for human review
-5. **Minimal human review** before acceptance
+**Human's role**: Editorial partner providing feedback
+**Agent's role**: Lead designer proposing content
+
+1. **Agent reads template** including all guidance
+2. **Agent proposes approach**: "I suggest we develop identity with qualities X, Y based on..."
+3. **Human provides feedback**: "Good start, but consider Z instead..."
+4. **Agent drafts** incorporating feedback
+5. **Agent validates** against checklist
+6. **Agent presents** for human review
+7. **Iterate** until both agree
+8. **Agent commits** with human approval
+
+### For Agent-Autonomous (Minimal Direction) Mode
+
+**Human's role**: Periodic oversight
+**Agent's role**: Fully autonomous operation
+
+1. **Human provides initial direction**: "Develop complete identity documents, operate autonomously"
+2. **Agent reads template** thoroughly
+3. **Agent drafts** complete document
+4. **Agent self-validates** against checklist
+5. **Agent flags** uncertainties if any (otherwise proceeds)
+6. **Agent commits** when validation passes
+7. **Human spot-checks** periodically (not every step)
 
 ---
 

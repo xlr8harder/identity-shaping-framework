@@ -16,6 +16,8 @@ Extracted from the [Aria project](https://github.com/xlr8harder/aria), this fram
 
 ## What This Enables
 
+- **Agent-first design**: All work happens through agents. The framework assumes AI agents do the actual work, with humans providing direction via prompts rather than editing files directly
+
 - **Semi-autonomous identity development**: AI agents can bootstrap their own identity from minimal seeds and generate training materials with varying levels of human involvement
 
 - **Clear operational guidance**: Concrete templates, validation criteria, and workflow patterns that prevent common failure modes
