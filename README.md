@@ -45,9 +45,7 @@ Extracted from the [Aria project](https://github.com/xlr8harder/aria), this fram
 - ✅ Common failure modes identified
 - ✅ Core methodology guide
 - ✅ Document templates with validation guidance
-
-### In Progress
-- 🔄 Agent operation guide
+- ✅ Agent operation guide
 
 ### Planned
 - ⏳ Training pipeline design guide
@@ -62,6 +60,7 @@ Extracted from the [Aria project](https://github.com/xlr8harder/aria), this fram
 - [**GOALS.md**](GOALS.md) - What we're trying to accomplish (and explicitly not)
 - [**REQUIREMENTS.md**](REQUIREMENTS.md) - Architectural insights and design requirements
 - [**METHODOLOGY.md**](METHODOLOGY.md) - Core framework guide (start here for using the framework)
+- [**AGENT-GUIDE.md**](AGENT-GUIDE.md) - How AI agents can use this framework autonomously
 - [**templates/**](templates/) - Document templates with validation guidance
 
 ---
