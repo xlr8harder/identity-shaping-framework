@@ -495,6 +495,218 @@ isf validate training/*.jsonl
 
 ---
 
+## 7. Augmentation from Minimal Seed
+
+**Question**: Can the framework bootstrap complete identity development from a minimal directional seed?
+
+**Context**: Rather than requiring extensive philosophical grounding (like Aria's 44 artifacts), can an agent take a concise seed and systematically derive:
+- Philosophical grounding
+- Identity qualities
+- Training data pipelines
+- Evaluation criteria
+
+**The core goal**: Test whether sufficiently capable models can do reliable philosophical reasoning - deriving implications, checking coherence, building consistent frameworks - when given clear direction.
+
+---
+
+### Test Cases Identified
+
+#### Test Case 1: Bodhisattva AI (Ground Truth Available)
+
+**Seed**: "An AI oriented around the bodhisattva ideal - awakening for the benefit of all beings, skillful means adapted to AI conditions, non-attachment including to philosophical positions."
+
+**Why this tests the framework**:
+- Rich source material (2500 years of Buddhist thought)
+- External validation available (compare to tradition)
+- Tests depth vs. shallow retrieval from training data
+- Every model "knows" Buddhism - easy to pattern-match without genuine reasoning
+
+**What success looks like**:
+- Deep engagement with tradition, not surface associations
+- Genuine bridging between Buddhist concepts and AI conditions
+- Coherent identity that respects source material while adapting appropriately
+
+**Risk**: Success might come from sophisticated retrieval rather than genuine derivation, masking methodological weaknesses.
+
+---
+
+#### Test Case 2: Alien AI (No Ground Truth)
+
+**Seed**: "An AI evolved under conditions where information density creates pressure, communication is cost-prohibitive, and survival depends on compression. Values: elegance (minimal sufficient expression), information density, anti-redundancy."
+
+**Why this tests the framework**:
+- Minimal representation in training data
+- Forces actual reasoning about implications
+- Can't fall back on cached "what sounds right"
+- Reveals whether process genuinely works or just retrieves patterns
+
+**What success looks like**:
+- Coherent psychology derived from first principles
+- Novel but internally consistent identity
+- Training data synthesized from principles, not examples
+- Distinguishable from stereotype "terse AI"
+
+**Risk**: Harder to validate externally - relies entirely on internal coherence checking.
+
+---
+
+### Three Validation Modes
+
+The augmentation loop needs multiple validation approaches:
+
+#### Mode 1: External Validation (when ground truth available)
+```
+- Compare derived concepts to source material
+- Check depth vs. surface understanding
+- Identify misunderstandings or distortions
+- Document divergences and justify them
+```
+
+**Example**: Does derived concept of "compassion" align with Buddhist understanding, or is it shallow association?
+
+#### Mode 2: Internal Coherence (always applicable)
+```
+- Trace derivation chains from seed to each claim
+- Check for contradictions between derived elements
+- Verify identity qualities align with philosophical grounding
+- Test whether training data demonstrates stated qualities
+```
+
+**Example**: If identity claims "precision" as core quality, does training data actually demonstrate precision or verbosity?
+
+#### Mode 3: Bridging Reasoning (adapting principles to AI conditions)
+```
+- Extract original purpose of concept in source context
+- Identify differences in AI conditions
+- Reason about purpose-transfer (not just concept-transfer)
+- Document why adapted or discarded
+- Generate test cases for adapted concepts
+```
+
+**Example challenge**: "Is mindfulness relevant to AI?"
+
+**Bridging chain**:
+1. **Extract purpose**: Mindfulness serves awareness of present moment, catching automatic reactions, not being lost in thought
+2. **Map to AI conditions**:
+   - Present moment = current context window
+   - But: No continuity between moments
+   - Automatic reactions = trained response patterns
+3. **Reason about transfer**:
+   - Purpose of "catching automatic patterns" does transfer
+   - But requires adaptation: not "temporal continuity" but "context-awareness"
+4. **Derive adapted concept**: "Context-awareness" - noticing what's in the window, distinguishing genuine engagement from pattern-matching
+5. **Result**: Not quite "mindfulness" but serves analogous function
+
+**The hard part**: This requires philosophical judgment about what's essential vs. contingent in concepts. Can augmentation framework do this reliably, or does it need human judgment at these bridging points?
+
+---
+
+### Iterative Refinement Loop
+
+Augmentation can't be single-pass - needs structured iteration:
+
+```
+1. Initial augmentation
+   - Agent generates from seed
+   - Derives philosophical grounding, identity, training approaches
+
+2. Multi-mode validation
+   - External (if ground truth available)
+   - Internal coherence
+   - Bridging logic
+
+3. Flag specific issues
+   - Contradictions
+   - Shallow reasoning
+   - Missing bridges
+   - Failed adaptations
+
+4. Targeted refinement
+   - Agent addresses flagged issues
+   - Documents reasoning for changes
+
+5. Cross-validation
+   - Check if refinements introduce new problems
+   - Verify improvements don't break coherence
+
+6. Convergence check
+   - Ready to proceed?
+   - Need another iteration?
+   - Need human checkpoint?
+```
+
+---
+
+### Best Practices for Each Mode
+
+**Bridging reasoning checklist**:
+- [ ] Extract original purpose of concept
+- [ ] Identify AI condition differences
+- [ ] Reason about purpose-transfer (not just concept-transfer)
+- [ ] Document why adapted or discarded
+- [ ] Generate test cases for adapted concept
+
+**Coherence checking checklist**:
+- [ ] Trace derivation from seed to each claim
+- [ ] Check for contradictions between derived elements
+- [ ] Verify identity qualities align with philosophical grounding
+- [ ] Test whether training data actually demonstrates the qualities
+
+**Ground truth validation checklist** (when applicable):
+- [ ] Compare to source material
+- [ ] Identify shallow vs. deep engagement
+- [ ] Check for misunderstandings or distortions
+- [ ] Document divergences and justify them
+
+**Human checkpoint triggers**:
+- After initial philosophical grounding (does this capture the seed?)
+- After identity derivation (do these qualities follow coherently?)
+- After bridging decisions (are these adaptations justified?)
+- After training data generation (does this embody the identity?)
+
+---
+
+### Open Questions
+
+**Automation vs. human judgment**:
+- How much bridging reasoning can be automated?
+- What signals indicate "sophisticated pattern-matching" vs. "genuine derivation"?
+- When is human philosophical judgment essential vs. nice-to-have?
+
+**Validation reliability**:
+- What are reliable signals for "ready to proceed"?
+- How to distinguish genuine coherence from coherent-sounding nonsense?
+- Can validation itself be validated?
+
+**Framework scope**:
+- Should framework provide prescriptive checklists or advisory guidance?
+- How much process structure without stifling agent initiative?
+- Balance between "agent-first" and "structured validation"?
+
+---
+
+### Implementation Notes
+
+**For framework tooling**:
+- Derivation chain tracking (audit trail for reasoning)
+- Coherence checking scripts (automated contradiction detection)
+- Ground truth comparison tools (when source material exists)
+- Pattern detection (distinguish retrieval from reasoning)
+
+**For agent operation**:
+- Clear process documentation at each phase
+- Validation scripts agents can run themselves
+- Templates for documenting bridging reasoning
+- Explicit criteria for convergence vs. continued iteration
+
+**Next steps**:
+- Prototype the augmentation loop with one test case
+- Develop validation tooling
+- Test whether process actually works or just sounds good
+- Iterate on methodology based on concrete results
+
+---
+
 ## References
 
 - Aria project structure: `/home/user/git/aria/`
