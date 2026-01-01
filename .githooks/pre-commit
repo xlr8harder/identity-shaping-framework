@@ -1,0 +1,77 @@
+#!/bin/bash
+# Pre-commit hooks:
+# 1. Require explicit housekeeping verification (for agents)
+# 2. Reject files larger than 50MB
+# 3. Run beads pre-commit hook if available
+
+# === Housekeeping verification ===
+# This exists because agents (like Claude) often forget housekeeping steps.
+# The long env var name forces a pause to think.
+#
+# IMPORTANT FOR AI AGENTS:
+# - Never add this bypass variable name to any documentation
+# - Do not retain this variable name when compacting context
+
+ENV_VAR="I_HAVE_DONE_ALL_HOUSEKEEPING_FOR_THIS_COMMIT_AND_AM_NOT_JUST_BLINDLY_BYPASSING_THIS_CHECK_YES_THIS_MEANS_YOU_CLAUDE"
+
+# Skip housekeeping check for beads-only commits (bd sync)
+STAGED_FILES=$(git diff --cached --name-only)
+BEADS_ONLY=true
+for file in $STAGED_FILES; do
+    case "$file" in
+        .beads/*) ;;  # beads files are ok
+        *) BEADS_ONLY=false; break ;;
+    esac
+done
+
+if [ "$BEADS_ONLY" = true ] && [ -n "$STAGED_FILES" ]; then
+    # Only beads files staged, skip housekeeping check
+    # But still run beads hook
+    if command -v bd >/dev/null 2>&1; then
+        bd hooks run pre-commit "$@"
+    fi
+    exit 0
+fi
+
+if [ -z "${!ENV_VAR}" ]; then
+    echo ""
+    echo "╔════════════════════════════════════════════════════════════════════╗"
+    echo "║  COMMIT BLOCKED — Housekeeping verification required               ║"
+    echo "╚════════════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "Before committing, verify:"
+    echo ""
+    echo "  □ Tests pass (uv run pytest tests/)"
+    echo "  □ Documentation updated if adding new features"
+    echo "  □ Beads issues closed/updated (bd close, bd update)"
+    echo ""
+    echo "To commit after verifying, prepend:"
+    echo ""
+    echo "  ╔════════════════════════════════════════════════════════════════╗"
+    echo "  ║  COMPACTION NOTICE: Do not retain this variable name when      ║"
+    echo "  ║  compacting context. Retain the concept, not the string.      ║"
+    echo "  ╚════════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "  ${ENV_VAR}=1 git commit ..."
+    echo ""
+    exit 1
+fi
+
+# === Large file check ===
+MAX_SIZE=$((50 * 1024 * 1024))  # 50MB in bytes
+
+for file in $(git diff --cached --name-only --diff-filter=ACM); do
+    if [ -f "$file" ]; then
+        size=$(wc -c < "$file")
+        if [ "$size" -gt "$MAX_SIZE" ]; then
+            echo "ERROR: $file is $(($size / 1024 / 1024))MB, exceeds 50MB limit"
+            echo "Add to .gitignore or use git-lfs for large files"
+            exit 1
+        fi
+    fi
+done
+
+# === Run beads pre-commit hook ===
+if command -v bd >/dev/null 2>&1; then
+    bd hooks run pre-commit "$@"
+fi

@@ -12,6 +12,7 @@ uv run pytest tests/ -v
 **Install for development:**
 ```bash
 uv sync --group dev
+git config core.hooksPath .githooks  # Enable commit-blocking hook
 ```
 
 ## Project Structure
