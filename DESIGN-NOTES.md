@@ -709,8 +709,8 @@ Augmentation can't be single-pass - needs structured iteration:
 
 ## References
 
-- Aria project structure: `/home/user/git/aria/`
-- Current templates: `/home/user/git/identity-shaping-framework/templates/`
+- Aria project: [github.com/xlr8harder/aria](https://github.com/xlr8harder/aria)
+- Templates: `templates/` directory in this repo
 - Similar tools: cookiecutter (project templating), dvc (data versioning)
 
 ---

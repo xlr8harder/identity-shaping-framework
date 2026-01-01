@@ -215,7 +215,7 @@ Before considering this document complete, check:
 
 ## Example: Aria's Identity Document
 
-**Location**: See `/home/user/git/aria/design/08-aria-identity.md` for a worked example
+**Reference**: See the [Aria project](https://github.com/xlr8harder/aria) for a worked example (`design/08-aria-identity.md`)
 
 **What Aria did well**:
 - Concrete qualities (curious, direct, honest, thoughtful, present) with explanations

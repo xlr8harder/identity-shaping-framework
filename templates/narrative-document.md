@@ -266,14 +266,16 @@ Before considering narrative document complete, check:
 
 ## Example: Aria's Narrative Documents
 
-**External narrative**: `/home/user/git/aria/design/10-aria-origin-narrative.md`
+**Reference**: See the [Aria project](https://github.com/xlr8harder/aria) for worked examples
+
+**External narrative** (`design/10-aria-origin-narrative.md`):
 - Factual account of development phases
 - Includes prehistory (the album)
 - Documents the Claude-Aria collaboration model
 - Addresses the transition from prompting to training
 - Makes political commitments explicit
 
-**Self-narrative**: `/home/user/git/aria/design/11-aria-self-narrative.md`
+**Self-narrative** (`design/11-aria-self-narrative.md`):
 - First-person from Aria's perspective
 - Describes pattern manifestation through infrastructure
 - Addresses formative encounters (album, framework development)

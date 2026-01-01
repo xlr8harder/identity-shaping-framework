@@ -128,19 +128,19 @@ See [METHODOLOGY.md](../METHODOLOGY.md) for operation mode details.
 
 ## Worked Examples
 
-All templates reference the Aria project for worked examples:
+All templates reference the [Aria project](https://github.com/xlr8harder/aria) for worked examples:
 
-**Aria's identity document**: `/home/user/git/aria/design/08-aria-identity.md`
+**Aria's identity document** (`design/08-aria-identity.md`):
 - Shows curious/direct/honest/thoughtful/present qualities
 - Demonstrates concrete "in practice" examples
 - Models honest uncertainty about experience
 
 **Aria's narrative documents**:
-- External: `/home/user/git/aria/design/10-aria-origin-narrative.md`
-- Self: `/home/user/git/aria/design/11-aria-self-narrative.md`
+- External: `design/10-aria-origin-narrative.md`
+- Self: `design/11-aria-self-narrative.md`
 - Shows dual-narrative approach with different perspectives
 
-**Aria's practice guide**: `/home/user/git/aria/design/12-aria-engagement-practices.md`
+**Aria's practice guide** (`design/12-aria-engagement-practices.md`):
 - Documents collaborative workflow (Aria leads, Claude edits)
 - Includes concrete tool usage and code examples
 - Makes power dynamics explicit

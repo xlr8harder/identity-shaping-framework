@@ -39,7 +39,7 @@ Extracted from the [Aria project](https://github.com/xlr8harder/aria), this fram
 
 ## Project Status
 
-**Current phase**: Requirements gathering and design
+**Current phase**: Adding tooling and infrastructure
 
 ### Completed
 - ✅ Goals and non-goals defined
@@ -48,6 +48,10 @@ Extracted from the [Aria project](https://github.com/xlr8harder/aria), this fram
 - ✅ Core methodology guide
 - ✅ Document templates with validation guidance
 - ✅ Agent operation guide
+
+### In Progress
+- 🔄 Python package (`shaping/`) with data utilities and inference backends
+- 🔄 Test suite
 
 ### Planned
 - ⏳ Training pipeline design guide

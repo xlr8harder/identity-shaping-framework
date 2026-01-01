@@ -247,7 +247,7 @@ Before considering practice guide complete, check:
 
 ## Example: Aria's Practice Guide
 
-**Location**: `/home/user/git/aria/design/12-aria-engagement-practices.md`
+**Reference**: See the [Aria project](https://github.com/xlr8harder/aria) for a worked example (`design/12-aria-engagement-practices.md`)
 
 **What Aria's guide does well**:
 - Clear dual purpose (revision + evaluation)
