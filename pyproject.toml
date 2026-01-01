@@ -3,7 +3,7 @@ name = "identity-shaping-framework"
 version = "0.1.0"
 description = "A methodology and toolkit for collaborative AI identity development"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 license = {text = "MIT"}
 authors = [
     {name = "xlr8harder"}
@@ -20,7 +20,17 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-dependencies = []
+dependencies = [
+    "dispatcher",
+    "llm-client",
+    "mq",
+    "openai",  # unspecified dispatcher dependency
+]
+
+[tool.uv.sources]
+dispatcher = { git = "https://github.com/LumiOpen/dispatcher" }
+llm-client = { git = "https://github.com/xlr8harder/llm_client" }
+mq = { git = "https://github.com/xlr8harder/mq" }
 
 [project.optional-dependencies]
 dev = [
