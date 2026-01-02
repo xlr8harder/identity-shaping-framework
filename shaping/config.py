@@ -44,6 +44,10 @@ class ISFConfig:
         """
         self._config = DEFAULT_CONFIG.copy()
 
+        # Find config file
+        if config_path is None:
+            config_path = self._find_config()
+
         if config_path and config_path.exists():
             with open(config_path) as f:
                 user_config = yaml.safe_load(f)
@@ -52,6 +56,17 @@ class ISFConfig:
 
         # Identity tier override from environment
         self._identity_tier = os.environ.get("ISF_IDENTITY_TIER", "release")
+
+    @staticmethod
+    def _find_config() -> Optional[Path]:
+        """Search for isf.yaml in current directory and parents."""
+        current = Path.cwd()
+        while current != current.parent:
+            candidate = current / "isf.yaml"
+            if candidate.exists():
+                return candidate
+            current = current.parent
+        return None
 
     def _merge_config(self, user_config: dict):
         """Deep merge user config into defaults."""
