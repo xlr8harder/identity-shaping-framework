@@ -18,6 +18,7 @@ from llm_client.retry import retry_request
 from mq import store as mq_store
 
 from ..data.think_tags import strip_thinking
+from .model_formats import get_model_format, ThinkingMode
 
 # Optional tinker imports (TM internal package)
 try:
@@ -204,7 +205,11 @@ class TinkerClient:
 
         self.base_model = base_model
         self.model_path = model_path
-        self.renderer_name = renderer_name or model_info.get_recommended_renderer_name(base_model)
+
+        # Get model format configuration
+        self._model_format = get_model_format(base_model, thinking=True)
+        self.renderer_name = renderer_name or self._model_format.inference_renderer
+        self._use_hf_template = self._model_format.use_hf_for_inference
 
         # Initialize tinker clients
         self.service_client = tinker.ServiceClient()
@@ -220,11 +225,7 @@ class TinkerClient:
 
         # Initialize tokenizer and renderer
         self.tokenizer = get_tokenizer(base_model)
-
-        # DeepSeek V3.1 needs special handling
-        self._use_hf_template = (
-            "deepseek" in base_model.lower() and "v3" in base_model.lower()
-        )
+        self.renderer = self._model_format.get_inference_renderer(self.tokenizer)
 
         if self._use_hf_template:
             from transformers import AutoTokenizer
@@ -232,13 +233,7 @@ class TinkerClient:
                 base_model, trust_remote_code=True
             )
             self._stop_sequences = ["<｜end▁of▁sentence｜>", "<｜User｜>"]
-            self.renderer = renderers.get_renderer(
-                name=self.renderer_name, tokenizer=self.tokenizer
-            )
         else:
-            self.renderer = renderers.get_renderer(
-                name=self.renderer_name, tokenizer=self.tokenizer
-            )
             self._stop_sequences = None
 
         stop_seqs = (
@@ -271,24 +266,29 @@ class TinkerClient:
         )
 
     def _build_hf_prompt(self, messages: list[dict]) -> "tinker.ModelInput":
-        """Build prompt using HuggingFace chat template (for DeepSeek V3.1)."""
+        """Build prompt using HuggingFace chat template.
+
+        Uses the model_format configuration to determine proper template params.
+        For thinking models like DeepSeek V3.1, this handles:
+        - Stripping historical thinking from assistant messages
+        - Prefilling <think> for new generation
+        """
         msg_dicts = []
         for m in messages:
             role = m["role"]
             content = m["content"]
 
-            # Transform historical assistant messages for thinking format
-            if role == "assistant":
-                content = re.sub(r"<think>.*?</think>\s*", "", content, flags=re.DOTALL)
-                content = "</think>" + content
+            # For thinking models, historical assistant messages need processing
+            # The HF template expects <think>...</think> in content and strips it
+            if role == "assistant" and self._model_format.thinking_mode == ThinkingMode.EMBEDDED:
+                # Keep the content as-is - HF template handles stripping
+                pass
 
             msg_dicts.append({"role": role, "content": content})
 
-        formatted = self._hf_tokenizer.apply_chat_template(
-            msg_dicts,
-            tokenize=False,
-            add_generation_prompt=True,
-            thinking=True,
+        # Use model format to build the prompt
+        formatted = self._model_format.build_hf_inference_prompt(
+            msg_dicts, self._hf_tokenizer, add_generation_prompt=True
         )
 
         if formatted.endswith("<think>"):

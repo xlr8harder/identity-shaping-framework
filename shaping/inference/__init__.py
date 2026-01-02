@@ -35,6 +35,13 @@ Usage with backends (for dispatcher integration):
 
 from .backends import LLMClientBackend, TinkerBackend, RegistryBackend
 from .clients import LLMClient, TinkerClient, TINKER_AVAILABLE
+from .model_formats import (
+    ModelFormat,
+    ThinkingMode,
+    get_model_format,
+    get_training_renderer_name,
+    get_inference_renderer_name,
+)
 
 __all__ = [
     # Clients
@@ -45,4 +52,10 @@ __all__ = [
     "LLMClientBackend",
     "TinkerBackend",
     "RegistryBackend",
+    # Model formats
+    "ModelFormat",
+    "ThinkingMode",
+    "get_model_format",
+    "get_training_renderer_name",
+    "get_inference_renderer_name",
 ]
