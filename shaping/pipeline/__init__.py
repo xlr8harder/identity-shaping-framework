@@ -17,11 +17,11 @@ Example (single-model):
         output_file="responses.jsonl",
     )
 
-Example (multi-model):
-    from shaping.pipeline import run_pipeline, model_request, PipelineTask
+Example (multi-model with provenance tracking):
+    from shaping.pipeline import run_pipeline, model_request, TrackedTask
 
-    class JudgedResponseTask(PipelineTask):
-        def task_generator(self):
+    class JudgedResponseTask(TrackedTask):
+        def run(self):  # Note: run() not task_generator()
             messages = self.data["messages"]
 
             # Generate response from identity model
@@ -38,10 +38,12 @@ Example (multi-model):
         input_file="prompts.jsonl",
         output_file="responses.jsonl",
     )
+    # Output includes _provenance with all inference steps
 """
 
 from .runner import run_pipeline
-from .tasks import SingleTurnTask, MultiTurnTask, model_request
+from .tasks import SingleTurnTask, MultiTurnTask, TrackedTask, model_request
+from .provenance import InferenceStep, TrainingSample, AnnotatedTrainingSample
 
 # Re-export dispatcher base classes with ISF naming
 from dispatcher.taskmanager.task.base import GeneratorTask as PipelineTask
@@ -51,8 +53,9 @@ from dispatcher.taskmanager.backend.request import Request, Response
 __all__ = [
     # Pipeline runner
     "run_pipeline",
-    # Task base class
-    "PipelineTask",
+    # Task base classes
+    "PipelineTask",      # alias for GeneratorTask (no tracking)
+    "TrackedTask",       # with provenance capture
     "TaskFailed",
     # Pre-built task implementations
     "SingleTurnTask",
@@ -62,4 +65,7 @@ __all__ = [
     # Data classes
     "Request",
     "Response",
+    "TrainingSample",
+    "AnnotatedTrainingSample",
+    "InferenceStep",
 ]

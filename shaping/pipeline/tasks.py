@@ -3,15 +3,24 @@
 Provides reusable GeneratorTask subclasses for typical inference patterns.
 """
 
+import inspect
+from datetime import datetime
 from typing import Any, Dict, Generator, List, Optional, Union
 
 from dispatcher.taskmanager.task.base import GeneratorTask
 from dispatcher.taskmanager.backend.request import Request, Response
 
+from .provenance import InferenceStep, TrainingSample, AnnotatedTrainingSample, get_git_commit
+
+
+# Sampling parameters to capture in provenance
+_SAMPLING_KEYS = ("temperature", "max_tokens", "top_p", "stop", "n")
+
 
 def model_request(
     messages: list[dict],
     model: Optional[str] = None,
+    step_id: Optional[str] = None,
     **kwargs,
 ) -> Request:
     """Create a request, optionally with a model for routing.
@@ -20,6 +29,8 @@ def model_request(
         messages: Chat messages in OpenAI format
         model: Optional model reference (e.g., "isf.identity.full", "aria-v0.9-full").
             Required when using RegistryBackend (multi-model mode).
+        step_id: Optional identifier for this inference step (for provenance tracking).
+            If not provided, steps are numbered automatically.
         **kwargs: Additional parameters (temperature, max_tokens, etc.)
 
     Returns:
@@ -32,11 +43,118 @@ def model_request(
         # Multi-model pipeline (model in each request)
         response = yield model_request(messages, model="isf.identity.full")
         judge_resp = yield model_request(judge_msgs, model="isf.judge.small")
+
+        # With step IDs for provenance
+        response = yield model_request(messages, model="...", step_id="generate")
+        judgment = yield model_request(judge_msgs, model="...", step_id="judge")
     """
     content = {"messages": messages, **kwargs}
     if model is not None:
         content["_model"] = model
+    if step_id is not None:
+        content["_step_id"] = step_id
     return Request(content)
+
+
+class TrackedTask(GeneratorTask):
+    """Base task that captures provenance for all inference steps.
+
+    Subclasses implement `run()` instead of `task_generator()`.
+    All yields are automatically captured as InferenceSteps.
+
+    Task must return a TrainingSample, which gets wrapped as
+    AnnotatedTrainingSample with full provenance.
+
+    Example:
+        class MyTask(TrackedTask):
+            def run(self):
+                resp = yield model_request(msgs, model="isf.identity.full")
+                return TrainingSample(
+                    id=self.data["id"],
+                    messages=msgs + [{"role": "assistant", "content": resp.get_text()}],
+                )
+
+        # Output is AnnotatedTrainingSample with steps, input_data, etc.
+    """
+
+    def __init__(self, data: Dict[str, Any], context: Any = None):
+        super().__init__(data, context)
+        self._steps: List[InferenceStep] = []
+        self._step_counter = 0
+        self._started_at = datetime.now()
+        self._pipeline_file: Optional[str] = None
+
+        # Try to get source file of the subclass
+        try:
+            self._pipeline_file = inspect.getfile(self.__class__)
+        except Exception:
+            pass
+
+    def task_generator(self) -> Generator[Request, Response, Dict[str, Any]]:
+        """Wraps run() to capture all inference steps."""
+        gen = self.run()
+        response = None
+
+        while True:
+            try:
+                yielded = gen.send(response)
+
+                if isinstance(yielded, list):
+                    # Parallel requests
+                    responses = yield yielded
+                    for req, resp in zip(yielded, responses):
+                        self._record_step(req, resp)
+                    response = responses
+                else:
+                    # Single request
+                    resp = yield yielded
+                    self._record_step(yielded, resp)
+                    response = resp
+
+            except StopIteration as e:
+                return self._wrap_output(e.value)
+
+    def run(self) -> Generator[Request, Response, TrainingSample]:
+        """Override this method. Return a TrainingSample."""
+        raise NotImplementedError("Subclasses must implement run()")
+
+    def _record_step(self, request: Request, response: Response) -> None:
+        """Record an inference step from request/response pair."""
+        content = request.content
+
+        # Extract step_id (from request or auto-generate)
+        step_id = content.get("_step_id")
+
+        # Extract sampling params
+        sampling = {k: content[k] for k in _SAMPLING_KEYS if k in content}
+
+        step = InferenceStep(
+            messages=content.get("messages", []),
+            model=content.get("_model"),
+            model_resolved=response.model_name,
+            sampling=sampling,
+            response=response.get_text() if response.is_success else "",
+            error=str(response.error) if response.error else None,
+            step_id=step_id,
+            step_index=self._step_counter,
+            timestamp=datetime.now(),
+        )
+        self._steps.append(step)
+        self._step_counter += 1
+
+    def _wrap_output(self, sample: TrainingSample) -> Dict[str, Any]:
+        """Wrap TrainingSample with provenance as AnnotatedTrainingSample."""
+        annotated = AnnotatedTrainingSample(
+            id=sample.id,
+            messages=sample.messages,
+            input_data=self.data,
+            steps=self._steps,
+            pipeline_commit=get_git_commit(),
+            pipeline_file=self._pipeline_file,
+            started_at=self._started_at,
+            completed_at=datetime.now(),
+        )
+        return annotated.to_dict()
 
 
 class SingleTurnTask(GeneratorTask):
