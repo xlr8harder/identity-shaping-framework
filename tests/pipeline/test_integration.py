@@ -221,7 +221,7 @@ class TestPipelineIntegration:
 
 @pytest.fixture
 def mock_backend(monkeypatch):
-    """Mock the LLM backend to return predictable responses."""
+    """Mock the LLM backend and project setup to return predictable responses."""
     from shaping.inference import LLMClientBackend
 
     class MockBackend(LLMClientBackend):
@@ -250,3 +250,5 @@ def mock_backend(monkeypatch):
             )
 
     monkeypatch.setattr("shaping.pipeline.runner.LLMClientBackend", MockBackend)
+    # Skip project setup (isf.yaml check) in tests
+    monkeypatch.setattr("shaping.pipeline.runner._setup_project", lambda x: None)

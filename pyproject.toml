@@ -23,6 +23,7 @@ classifiers = [
 dependencies = [
     "click>=8.0",
     "dispatcher",
+    "jinja2>=3.0",
     "llm-client[tinker]",
     "mq",
     "openai", # unspecified dispatcher dependency

@@ -59,10 +59,15 @@ def _setup_project(input_file: Path) -> None:
     if env_file.exists():
         load_dotenv(env_file)
 
-    # Configure mq registry if present
-    registry_file = project_root / "config" / "registry.json"
-    if registry_file.exists():
-        mq_store.set_config_path_override(registry_file)
+    # Configure mq registry from isf.yaml prompts config
+    from ..prompts import PromptsConfig
+    config = PromptsConfig.from_project(project_root)
+    if not config.registry_path.exists():
+        raise FileNotFoundError(
+            f"Registry not found at {config.registry_path}. "
+            f"Run 'isf prompts build' to generate it."
+        )
+    mq_store.set_config_path_override(config.registry_path)
 
 
 def run_pipeline(
