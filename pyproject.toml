@@ -21,10 +21,14 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
+    "click>=8.0",
     "dispatcher",
     "llm-client",
     "mq",
-    "openai",  # unspecified dispatcher dependency
+    "openai", # unspecified dispatcher dependency
+    "python-dotenv>=1.0",
+    "pyyaml>=6.0",
+    "wikipedia>=1.4.0",
 ]
 
 [tool.uv.sources]
@@ -36,6 +40,9 @@ mq = { git = "https://github.com/xlr8harder/mq" }
 dev = [
     "pytest>=8.0.0",
 ]
+
+[project.scripts]
+isf = "shaping.cli:main"
 
 [build-system]
 requires = ["hatchling"]
