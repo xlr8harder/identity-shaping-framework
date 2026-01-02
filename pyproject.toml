@@ -23,12 +23,20 @@ classifiers = [
 dependencies = [
     "click>=8.0",
     "dispatcher",
-    "llm-client",
+    "llm-client[tinker]",
     "mq",
     "openai", # unspecified dispatcher dependency
     "python-dotenv>=1.0",
     "pyyaml>=6.0",
+    "tinker>=0.7.0",
+    "tinker-cookbook",
+    "transformers",  # for HF tokenizers in tests
     "wikipedia>=1.4.0",
+]
+
+[tool.uv]
+override-dependencies = [
+    "tinker-cookbook @ git+https://github.com/xlr8harder/tinker-cookbook",
 ]
 
 [tool.uv.sources]
