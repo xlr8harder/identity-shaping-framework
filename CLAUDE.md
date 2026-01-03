@@ -37,6 +37,7 @@ identity-shaping-framework/
 1. **Before committing**: Run tests to ensure nothing breaks
 2. **For significant changes**: Update relevant documentation
 3. **For new features**: Add tests
+4. **Review with subagent**: Launch a review subagent before committing to catch issues
 
 ## Coding Practices
 
