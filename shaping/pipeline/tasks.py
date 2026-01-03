@@ -5,6 +5,7 @@ Provides reusable GeneratorTask subclasses for typical inference patterns.
 
 import inspect
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional, Union
 
 from dispatcher.taskmanager.task.base import GeneratorTask
@@ -59,15 +60,36 @@ def model_request(
 class TrackedTask(GeneratorTask):
     """Base task that captures provenance for all inference steps.
 
-    Subclasses implement `run()` instead of `task_generator()`.
+    Subclasses implement `process_record()` instead of `task_generator()`.
     All yields are automatically captured as InferenceSteps.
 
     Task must return a TrainingSample, which gets wrapped as
     AnnotatedTrainingSample with full provenance.
 
+    Class attributes:
+        name: Pipeline name (required). Used to derive default paths.
+        record_input_file: Optional explicit input path. If None, uses cache.
+        default_workers: Number of parallel workers (default: 4).
+
+    Lifecycle hooks:
+        setup(): Called once before dispatcher starts (e.g., download data)
+        teardown(): Called once after dispatcher finishes (e.g., cleanup)
+
+    File paths:
+        get_record_input_file(): Returns explicit path or default cache path
+        get_record_output_file(): Returns output path (derived from name)
+
     Example:
-        class MyTask(TrackedTask):
-            def run(self):
+        class MyPipeline(TrackedTask):
+            name = "my-pipeline"
+
+            @classmethod
+            def setup(cls):
+                # Download data and write to cls.get_record_input_file()
+                with open(cls.get_record_input_file(), "w") as f:
+                    ...
+
+            def process_record(self):
                 resp = yield model_request(msgs, model="isf.identity.full")
                 return TrainingSample(
                     id=self.data["id"],
@@ -76,6 +98,41 @@ class TrackedTask(GeneratorTask):
 
         # Output is AnnotatedTrainingSample with steps, input_data, etc.
     """
+
+    # Required: pipeline name (used for default paths)
+    name: str = None  # type: ignore
+
+    # Optional: explicit input file path. If None, uses pipelines/.cache/{name}.jsonl
+    record_input_file: Optional[Path] = None
+
+    # Optional: number of parallel workers
+    default_workers: int = 4
+
+    @classmethod
+    def get_record_input_file(cls) -> Path:
+        """Get input file path: explicit path if set, otherwise cache path."""
+        if cls.record_input_file is not None:
+            return cls.record_input_file
+        if cls.name is None:
+            raise ValueError(f"{cls.__name__} must define 'name' attribute")
+        return Path(f"pipelines/.cache/{cls.name}.jsonl")
+
+    @classmethod
+    def get_record_output_file(cls) -> Path:
+        """Get output file path (derived from name, not user-configurable)."""
+        if cls.name is None:
+            raise ValueError(f"{cls.__name__} must define 'name' attribute")
+        return Path(f"training/data/{cls.name}.jsonl")
+
+    @classmethod
+    def setup(cls) -> None:
+        """Called once before dispatcher starts. Override to prepare input data."""
+        pass
+
+    @classmethod
+    def teardown(cls) -> None:
+        """Called once after dispatcher finishes. Override for cleanup."""
+        pass
 
     def __init__(self, data: Dict[str, Any], context: Any = None):
         super().__init__(data, context)
@@ -91,8 +148,8 @@ class TrackedTask(GeneratorTask):
             pass
 
     def task_generator(self) -> Generator[Request, Response, Dict[str, Any]]:
-        """Wraps run() to capture all inference steps."""
-        gen = self.run()
+        """Wraps process_record() to capture all inference steps."""
+        gen = self.process_record()
         response = None
 
         while True:
@@ -114,9 +171,9 @@ class TrackedTask(GeneratorTask):
             except StopIteration as e:
                 return self._wrap_output(e.value)
 
-    def run(self) -> Generator[Request, Response, TrainingSample]:
-        """Override this method. Return a TrainingSample."""
-        raise NotImplementedError("Subclasses must implement run()")
+    def process_record(self) -> Generator[Request, Response, TrainingSample]:
+        """Override this method to process one record. Return a TrainingSample."""
+        raise NotImplementedError("Subclasses must implement process_record()")
 
     def _record_step(self, request: Request, response: Response) -> None:
         """Record an inference step from request/response pair."""

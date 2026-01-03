@@ -22,7 +22,7 @@ from shaping.pipeline.provenance import AnnotatedTrainingSample
 class SimpleSynthesisTask(TrackedTask):
     """Test task that simulates a simple synthesis pipeline."""
 
-    def run(self):
+    def process_record(self):
         prompt = self.data.get("prompt", "Hello")
         messages = [{"role": "user", "content": prompt}]
 
@@ -45,7 +45,7 @@ class SimpleSynthesisTask(TrackedTask):
 class MultiStepTask(TrackedTask):
     """Test task with multiple inference steps."""
 
-    def run(self):
+    def process_record(self):
         # First step
         resp1 = yield model_request(
             [{"role": "user", "content": "Step 1"}],

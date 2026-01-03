@@ -19,7 +19,7 @@ from shaping.pipeline.provenance import get_git_commit
 class SimpleTrackedTask(TrackedTask):
     """Test task that makes two inference calls."""
 
-    def run(self):
+    def process_record(self):
         msgs = [{"role": "user", "content": "Hello"}]
 
         # First call
@@ -46,7 +46,7 @@ class SimpleTrackedTask(TrackedTask):
 class ParallelTrackedTask(TrackedTask):
     """Test task that makes parallel inference calls."""
 
-    def run(self):
+    def process_record(self):
         # Parallel calls
         responses = yield [
             model_request([{"role": "user", "content": "A"}], model="m1"),
@@ -150,7 +150,7 @@ class TestTrackedTask:
         """Step index auto-increments even without step_id."""
 
         class NoStepIdTask(TrackedTask):
-            def run(self):
+            def process_record(self):
                 r1 = yield model_request([{"role": "user", "content": "1"}])
                 r2 = yield model_request([{"role": "user", "content": "2"}])
                 return TrainingSample(id="test", messages=[])
@@ -188,7 +188,7 @@ class TestTrackedTask:
         """TrackedTask records errors from failed responses."""
 
         class SingleCallTask(TrackedTask):
-            def run(self):
+            def process_record(self):
                 resp = yield model_request([{"role": "user", "content": "x"}])
                 return TrainingSample(id="err", messages=[])
 
@@ -210,7 +210,7 @@ class TestTrackedTask:
         """TrackedTask captures original input data."""
 
         class SimpleTask(TrackedTask):
-            def run(self):
+            def process_record(self):
                 yield model_request([{"role": "user", "content": "x"}])
                 return TrainingSample(id=self.data["id"], messages=[])
 
@@ -454,7 +454,7 @@ class TestTrackedTaskEdgeCases:
         """Handles empty messages list."""
 
         class EmptyMsgTask(TrackedTask):
-            def run(self):
+            def process_record(self):
                 resp = yield model_request([])
                 return TrainingSample(id="empty", messages=[])
 
@@ -474,7 +474,7 @@ class TestTrackedTaskEdgeCases:
         """All sampling params are captured."""
 
         class FullSamplingTask(TrackedTask):
-            def run(self):
+            def process_record(self):
                 resp = yield model_request(
                     [{"role": "user", "content": "x"}],
                     temperature=0.8,
@@ -505,7 +505,7 @@ class TestTrackedTaskEdgeCases:
         """Handles many sequential steps correctly."""
 
         class ManyStepsTask(TrackedTask):
-            def run(self):
+            def process_record(self):
                 for i in range(5):
                     yield model_request(
                         [{"role": "user", "content": f"msg{i}"}],
@@ -533,7 +533,7 @@ class TestTrackedTaskEdgeCases:
         """Handles mix of parallel and sequential steps."""
 
         class MixedTask(TrackedTask):
-            def run(self):
+            def process_record(self):
                 # Sequential
                 r1 = yield model_request([{"role": "user", "content": "1"}], step_id="first")
 

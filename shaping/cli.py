@@ -488,6 +488,162 @@ def _list_evals(project_dir: Path) -> dict:
     return evals
 
 
+# ============================================================================
+# Pipeline subcommand group
+# ============================================================================
+
+@cli.group()
+def pipeline():
+    """Run data pipelines.
+
+    Commands for running data generation pipelines that produce training data.
+    """
+    pass
+
+
+@pipeline.command("run")
+@click.argument("pipeline_name")
+@click.option("--limit", "-n", type=int, help="Process only first N records")
+@click.option("--output", "-o", type=click.Path(path_type=Path), help="Override output path")
+@click.option("--workers", "-w", type=int, help="Number of parallel workers")
+@pass_context
+def pipeline_run(ctx: ProjectContext, pipeline_name: str, limit: int,
+                 output: Path, workers: int):
+    """Run a pipeline by name.
+
+    PIPELINE_NAME should match a TrackedTask subclass with that name
+    in the pipelines/ directory.
+
+    Examples:
+        isf pipeline run wildchat-training
+        isf pipeline run wildchat-training --limit 10
+        isf pipeline run wildchat-training -n 10 -o test.jsonl
+    """
+    # Set up mq with project registry
+    if not ctx.setup_mq():
+        raise click.ClickException(f"No registry found in {ctx.project_dir}")
+
+    # Get the pipeline definition
+    pipeline_def = _get_pipeline(pipeline_name, ctx.project_dir)
+    if pipeline_def is None:
+        available = _list_pipelines(ctx.project_dir)
+        if available:
+            names = ", ".join(sorted(available.keys()))
+            raise click.ClickException(
+                f"Unknown pipeline: {pipeline_name}\n\n"
+                f"Available pipelines: {names}\n\n"
+                f"Hint: Use 'isf pipeline list' to see all available pipelines."
+            )
+        else:
+            raise click.ClickException(
+                f"Unknown pipeline: {pipeline_name}\n\n"
+                f"No pipelines found. Create Python files in {ctx.project_dir}/pipelines/ "
+                f"with TrackedTask subclasses that have a 'name' attribute."
+            )
+
+    # Run the pipeline
+    from .pipeline import run_pipeline
+
+    try:
+        run_pipeline(
+            pipeline_def,
+            limit=limit,
+            output_file=output,
+            num_workers=workers,
+        )
+    except Exception as e:
+        raise click.ClickException(str(e))
+
+
+@pipeline.command("list")
+@pass_context
+def pipeline_list(ctx: ProjectContext):
+    """List available pipelines."""
+    pipelines = _list_pipelines(ctx.project_dir)
+
+    if pipelines:
+        click.echo(f"Pipelines ({ctx.project_dir}/pipelines/):")
+        for name, info in sorted(pipelines.items()):
+            source = info.get("source", "")
+            workers = info.get("default_workers", 4)
+            click.echo(f"  {name}: {source} (workers: {workers})")
+    else:
+        click.echo("No pipelines found.")
+        click.echo(f"\nTo add pipelines, create Python files in {ctx.project_dir}/pipelines/")
+        click.echo("with TrackedTask subclasses that have a 'name' attribute.")
+
+
+def _discover_pipelines(project_dir: Path) -> dict:
+    """Discover pipeline classes in project's pipelines/ directory.
+
+    Returns dict mapping pipeline name to {"source": "module:class", "class": TaskClass}
+    """
+    from .pipeline import TrackedTask
+    import importlib.util
+
+    pipelines_dir = project_dir / "pipelines"
+    if not pipelines_dir.exists():
+        return {}
+
+    discovered = {}
+
+    for py_file in pipelines_dir.glob("*.py"):
+        if py_file.name.startswith("_"):
+            continue
+
+        module_name = f"pipelines.{py_file.stem}"
+
+        try:
+            # Load the module
+            spec = importlib.util.spec_from_file_location(module_name, py_file)
+            if spec is None or spec.loader is None:
+                continue
+
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = module  # Register before exec for proper imports
+            spec.loader.exec_module(module)
+
+            # Find all TrackedTask subclasses with a name
+            for attr_name in dir(module):
+                attr = getattr(module, attr_name)
+                if (isinstance(attr, type)
+                    and issubclass(attr, TrackedTask)
+                    and attr is not TrackedTask
+                    and hasattr(attr, 'name')
+                    and attr.name):  # Must have a name
+                    pipeline_name = attr.name
+                    discovered[pipeline_name] = {
+                        "source": f"{module_name}:{attr_name}",
+                        "class": attr,
+                        "default_workers": getattr(attr, 'default_workers', 4),
+                    }
+
+        except Exception as e:
+            # Log but don't fail - let user know about broken pipeline files
+            click.echo(f"Warning: Failed to load {py_file}: {e}", err=True)
+
+    return discovered
+
+
+def _get_pipeline(name: str, project_dir: Path):
+    """Get a pipeline class by name."""
+    pipelines = _discover_pipelines(project_dir)
+    if name in pipelines:
+        return pipelines[name]["class"]
+    return None
+
+
+def _list_pipelines(project_dir: Path) -> dict:
+    """List all available pipelines."""
+    pipelines = {}
+    for name, info in _discover_pipelines(project_dir).items():
+        pipelines[name] = {
+            "source": info["source"],
+            "default_workers": info.get("default_workers", 4),
+        }
+    return pipelines
+
+
 def main():
     """Entry point for the isf CLI."""
     cli()
