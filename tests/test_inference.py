@@ -1,4 +1,4 @@
-"""Tests for shaping.inference module.
+"""Tests for shaping.modeling module.
 
 Tests cover:
 - LLMClient message building
@@ -22,27 +22,26 @@ class TestTinkerClientResponseParsing:
     @pytest.fixture
     def mock_client(self):
         """Create a TinkerClient with mocked tinker dependencies."""
-        with patch("shaping.inference.clients.TINKER_AVAILABLE", True):
-            with patch("shaping.inference.clients.tinker"):
-                with patch("shaping.inference.clients.renderers") as mock_renderers:
-                    with patch("shaping.inference.clients.model_info") as mock_model_info:
-                        with patch("shaping.inference.clients.get_tokenizer") as mock_tokenizer:
-                            # Setup mocks
-                            mock_model_info.get_recommended_renderer_name.return_value = "qwen3"
-                            mock_tokenizer.return_value = MagicMock()
-                            mock_renderer = MagicMock()
-                            mock_renderers.get_renderer.return_value = mock_renderer
-                            mock_renderer.get_stop_sequences.return_value = [151645]
+        with patch("shaping.modeling.tinker.client.tinker"):
+            with patch("shaping.modeling.tinker.client.renderers") as mock_renderers:
+                with patch("shaping.modeling.tinker.client.model_info") as mock_model_info:
+                    with patch("shaping.modeling.tinker.client.get_tokenizer") as mock_tokenizer:
+                        # Setup mocks
+                        mock_model_info.get_recommended_renderer_name.return_value = "qwen3"
+                        mock_tokenizer.return_value = MagicMock()
+                        mock_renderer = MagicMock()
+                        mock_renderers.get_renderer.return_value = mock_renderer
+                        mock_renderer.get_stop_sequences.return_value = [151645]
 
-                            from shaping.inference.clients import TinkerClient
+                        from shaping.modeling.tinker import TinkerClient
 
-                            # Create client (will use mocks)
-                            client = TinkerClient.__new__(TinkerClient)
-                            client._use_hf_template = False
-                            client.renderer = mock_renderer
-                            client.tokenizer = mock_tokenizer.return_value
+                        # Create client (will use mocks)
+                        client = TinkerClient.__new__(TinkerClient)
+                        client._use_hf_template = False
+                        client.renderer = mock_renderer
+                        client.tokenizer = mock_tokenizer.return_value
 
-                            yield client, mock_renderer
+                        yield client, mock_renderer
 
     def test_parse_structured_thinking_content(self, mock_client):
         """Renderer returns structured content with thinking and text parts."""
@@ -136,8 +135,8 @@ class TestLLMClientMessageBuilding:
     @pytest.fixture
     def mock_llm_client(self):
         """Create LLMClient with mocked mq dependencies."""
-        with patch("shaping.inference.clients.mq_store") as mock_store:
-            with patch("shaping.inference.clients.get_provider") as mock_get_provider:
+        with patch("shaping.modeling.clients.mq_store") as mock_store:
+            with patch("shaping.modeling.clients.get_provider") as mock_get_provider:
                 mock_store.get_model.return_value = {
                     "provider": "openrouter",
                     "model": "qwen/qwen3-30b",
@@ -145,7 +144,7 @@ class TestLLMClientMessageBuilding:
                 }
                 mock_get_provider.return_value = MagicMock()
 
-                from shaping.inference.clients import LLMClient
+                from shaping.modeling.clients import LLMClient
                 client = LLMClient("test-model")
                 yield client
 
@@ -174,15 +173,15 @@ class TestLLMClientMessageBuilding:
 
     def test_sysprompt_override(self):
         """Sysprompt override replaces model's configured sysprompt."""
-        with patch("shaping.inference.clients.mq_store") as mock_store:
-            with patch("shaping.inference.clients.get_provider"):
+        with patch("shaping.modeling.clients.mq_store") as mock_store:
+            with patch("shaping.modeling.clients.get_provider"):
                 mock_store.get_model.return_value = {
                     "provider": "openrouter",
                     "model": "qwen/qwen3-30b",
                     "sysprompt": "Original sysprompt"
                 }
 
-                from shaping.inference.clients import LLMClient
+                from shaping.modeling.clients import LLMClient
                 client = LLMClient("test-model", sysprompt_override="Override sysprompt")
 
                 messages = [{"role": "user", "content": "Hello"}]
@@ -192,15 +191,15 @@ class TestLLMClientMessageBuilding:
 
     def test_no_sysprompt_configured(self):
         """Works correctly when no sysprompt configured."""
-        with patch("shaping.inference.clients.mq_store") as mock_store:
-            with patch("shaping.inference.clients.get_provider"):
+        with patch("shaping.modeling.clients.mq_store") as mock_store:
+            with patch("shaping.modeling.clients.get_provider"):
                 mock_store.get_model.return_value = {
                     "provider": "openrouter",
                     "model": "qwen/qwen3-30b"
                     # No sysprompt
                 }
 
-                from shaping.inference.clients import LLMClient
+                from shaping.modeling.clients import LLMClient
                 client = LLMClient("test-model")
 
                 messages = [{"role": "user", "content": "Hello"}]

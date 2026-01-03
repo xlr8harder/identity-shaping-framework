@@ -5,7 +5,7 @@ training and inference formatters.
 """
 
 import pytest
-from shaping.inference.model_formats import (
+from shaping.modeling.model_formats import (
     ModelFormat,
     ThinkingMode,
     get_model_format,

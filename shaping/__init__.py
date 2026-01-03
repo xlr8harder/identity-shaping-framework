@@ -5,10 +5,11 @@ A reusable toolkit for AI identity shaping projects. Provides:
 - shaping.config: Model resolution and ISF configuration
 - shaping.eval: Evaluation infrastructure (rubrics, parsing, judging)
 - shaping.data: Training data utilities (think tags, formatting)
-- shaping.inference: Model clients and backends (llm_client, tinker)
+- shaping.modeling: Model clients, backends, and renderers
 
 Quick start with clients:
-    from shaping.inference import LLMClient, TinkerClient
+    from shaping.modeling import LLMClient
+    from shaping.modeling.tinker import TinkerClient
 
     # API-based model
     client = LLMClient("aria-v0.9-full")
@@ -19,7 +20,7 @@ Quick start with clients:
     display, full = await client.query_async([...])
 
 Quick start with backends (for dispatcher):
-    from shaping.inference import RegistryBackend
+    from shaping.modeling import RegistryBackend
     from dispatcher.taskmanager.backend.request import Request
 
     backend = RegistryBackend()

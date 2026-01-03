@@ -1,24 +1,17 @@
-"""Model clients for inference.
+"""Tinker model client for inference.
 
-Provides high-level clients for different model types:
-- LLMClient: mq-registered models via llm_client (OpenRouter, Chutes, etc.)
-- TinkerClient: trained models via tinker sampling
-
-These clients handle the actual API/sampling calls. The backends in backends.py
-wrap these with the dispatcher-compatible BackendManager interface.
+Provides TinkerClient for trained models via tinker sampling.
+Requires tinker and tinker_cookbook packages (TM internal).
 """
 
 import asyncio
-import re
-import time
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
-from llm_client import get_provider
-from llm_client.retry import retry_request
-from mq import store as mq_store
+from ...data.think_tags import strip_thinking
+from ..model_formats import get_model_format, ThinkingMode
 
-from ..data.think_tags import strip_thinking
-from .model_formats import get_model_format, ThinkingMode
+if TYPE_CHECKING:
+    import tinker
 
 # Optional tinker imports (TM internal package)
 try:
@@ -34,128 +27,6 @@ except ImportError:
     renderers = None
     model_info = None
     get_tokenizer = None
-
-
-class LLMClient:
-    """Client for mq-registered models via llm_client.
-
-    Supports both sync and async queries with retry handling.
-
-    Example:
-        client = LLMClient("aria-v0.9-full")
-        response = client.query([{"role": "user", "content": "Hello!"}])
-
-        # Or with async
-        response = await client.query_async([...], "Follow-up")
-    """
-
-    def __init__(
-        self,
-        shortname: str,
-        sysprompt_override: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_retries: int = 5,
-    ):
-        """Initialize client with an mq model shortname.
-
-        Args:
-            shortname: Model shortname registered in mq (e.g., "aria-v0.9-full")
-            sysprompt_override: Override the model's configured sysprompt (None = use model's)
-            temperature: Sampling temperature (None = use model default)
-            max_retries: Max retries for rate limit backoff
-        """
-        model_info_data = mq_store.get_model(shortname)
-        self.shortname = shortname
-        self.provider_name = model_info_data["provider"]
-        self.model_id = model_info_data["model"]
-        self.max_retries = max_retries
-        self.temperature = temperature
-
-        # Use override if provided, else model's configured sysprompt
-        if sysprompt_override is not None:
-            self.sysprompt = sysprompt_override
-        else:
-            self.sysprompt = model_info_data.get("sysprompt")
-
-        self._provider = get_provider(self.provider_name)
-
-    def _build_messages(self, messages: list[dict]) -> list[dict]:
-        """Build messages list, injecting sysprompt if configured."""
-        if not self.sysprompt:
-            return list(messages)
-
-        # Don't add sysprompt if already present
-        if messages and messages[0].get("role") == "system":
-            return list(messages)
-
-        return [{"role": "system", "content": self.sysprompt}] + list(messages)
-
-    def query(self, messages: list[dict]) -> str:
-        """Query the model with messages. Returns response text.
-
-        Args:
-            messages: List of message dicts with "role" and "content"
-
-        Returns:
-            Response content as string
-        """
-        full_messages = self._build_messages(messages)
-        last_error = None
-
-        options = {}
-        if self.temperature is not None:
-            options["temperature"] = self.temperature
-
-        for attempt in range(self.max_retries):
-            try:
-                result = retry_request(
-                    self._provider,
-                    messages=full_messages,
-                    model_id=self.model_id,
-                    max_retries=3,
-                    **options,
-                )
-                if result.success and result.standardized_response:
-                    content = result.standardized_response.get("content")
-                    if isinstance(content, str) and content.strip():
-                        return content
-                    # Handle list content (OpenAI format)
-                    if isinstance(content, list):
-                        parts = [p.get("text", "") for p in content if isinstance(p, dict)]
-                        text = "".join(parts)
-                        if text.strip():
-                            return text
-                last_error = (
-                    result.error_info.get("message", "Empty response")
-                    if result.error_info
-                    else "Empty response"
-                )
-            except Exception as e:
-                last_error = str(e)
-            if attempt < self.max_retries - 1:
-                time.sleep(1 * (attempt + 1))
-
-        raise RuntimeError(f"Query failed after {self.max_retries} attempts: {last_error}")
-
-    async def query_async(self, messages: list[dict]) -> str:
-        """Async version of query."""
-        return await asyncio.to_thread(self.query, messages)
-
-    def query_with_thinking(self, messages: list[dict]) -> tuple[str, str]:
-        """Query and return both display and full response.
-
-        Returns:
-            (display_response, full_response) - display has thinking stripped
-        """
-        full_response = self.query(messages)
-        display_response = strip_thinking(full_response)
-        return display_response, full_response
-
-    async def query_with_thinking_async(self, messages: list[dict]) -> tuple[str, str]:
-        """Async version of query_with_thinking."""
-        full_response = await self.query_async(messages)
-        display_response = strip_thinking(full_response)
-        return display_response, full_response
 
 
 class TinkerClient:
@@ -257,7 +128,7 @@ class TinkerClient:
         Returns:
             TinkerClient configured for that checkpoint
         """
-        from ..config import resolve_checkpoint
+        from ...config import resolve_checkpoint
         base_model, renderer_name, model_path = resolve_checkpoint(spec)
         return cls(
             base_model=base_model,

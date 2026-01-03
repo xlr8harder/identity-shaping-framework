@@ -222,7 +222,7 @@ class TestPipelineIntegration:
 @pytest.fixture
 def mock_backend(monkeypatch):
     """Mock the LLM backend and project setup to return predictable responses."""
-    from shaping.inference import LLMClientBackend
+    from shaping.modeling import LLMClientBackend
 
     class MockBackend(LLMClientBackend):
         def __init__(self, *args, **kwargs):

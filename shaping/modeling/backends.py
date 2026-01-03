@@ -17,7 +17,9 @@ from dispatcher.taskmanager.backend.request import Request, Response
 from mq import store as mq_store
 
 from ..config import resolve_model
-from .clients import LLMClient, TinkerClient, TINKER_AVAILABLE
+from .clients import LLMClient
+
+from .tinker import TinkerClient
 
 
 class LLMClientBackend(BackendManager):
@@ -63,11 +65,12 @@ class LLMClientBackend(BackendManager):
             display_response, full_response = self.client.query_with_thinking(messages)
 
             # Format for Response.get_text() compatibility
+            # Use full_response so pipeline captures reasoning traces
             content = {
                 "choices": [{
-                    "message": {"content": display_response}
+                    "message": {"content": full_response}
                 }],
-                "_full_response": full_response,
+                "_display_response": display_response,
             }
             return Response(request, content=content, model_name=self.model_id)
 
@@ -111,15 +114,7 @@ class TinkerBackend(BackendManager):
             temperature: Sampling temperature
             max_tokens: Maximum tokens to generate
 
-        Raises:
-            ImportError: If tinker packages are not installed
         """
-        if not TINKER_AVAILABLE:
-            raise ImportError(
-                "TinkerBackend requires tinker and tinker_cookbook packages. "
-                "These are TM internal packages."
-            )
-
         self.client = TinkerClient(
             base_model=base_model,
             model_path=model_path,
@@ -168,11 +163,12 @@ class TinkerBackend(BackendManager):
             display_response, full_response = self.client.query(messages)
 
             # Format for Response.get_text() compatibility
+            # Use full_response so pipeline captures reasoning traces
             content = {
                 "choices": [{
-                    "message": {"content": display_response}
+                    "message": {"content": full_response}
                 }],
-                "_full_response": full_response,
+                "_display_response": display_response,
             }
             return Response(request, content=content, model_name=self.base_model)
 
@@ -229,10 +225,6 @@ class RegistryBackend(BackendManager):
         if provider in LLMCLIENT_PROVIDERS:
             backend = LLMClientBackend(shortname, max_retries=self.max_retries)
         elif provider == "tinker":
-            if not TINKER_AVAILABLE:
-                raise ImportError(
-                    f"Model '{shortname}' requires tinker backend, but tinker is not installed."
-                )
             # Tinker models need base_model and optionally model_path/renderer
             base_model = model_info_data.get("model")
             if not base_model:

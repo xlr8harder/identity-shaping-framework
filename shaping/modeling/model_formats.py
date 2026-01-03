@@ -8,7 +8,7 @@ Key insight: Training and inference often need different formatters:
 - Inference: May strip historical thinking, prefill <think> for consistency
 
 Example usage:
-    from shaping.inference.model_formats import get_model_format
+    from shaping.modeling.model_formats import get_model_format
 
     fmt = get_model_format("deepseek-ai/DeepSeek-V3.1")
 

@@ -27,11 +27,13 @@ shaping/                        # Generic identity-shaping toolkit
 │   ├── parsers.py             # XML parsing for structured responses
 │   ├── rubrics.py             # Rubric definitions (generic base)
 │   └── judge.py               # Assessment/judging logic
-├── inference/                  # Model backends
-│   ├── base.py                # BackendManager interface (from dispatcher)
-│   ├── llm_client.py          # mq/llm_client backend
-│   ├── tinker.py              # Tinker backend for trained models
-│   └── registry.py            # Model resolution utilities
+├── modeling/                   # Model backends and renderers
+│   ├── clients.py             # LLMClient for mq-registered models
+│   ├── backends.py            # BackendManager implementations
+│   ├── model_formats.py       # Model format configuration
+│   └── tinker/                # Tinker-specific wrappers
+│       ├── client.py          # TinkerClient for trained models
+│       └── renderers.py       # Renderer wrappers with HF compatibility
 └── pipeline/                   # Dispatcher-based pipeline infrastructure
     ├── tasks.py               # GeneratorTask base classes
     └── runner.py              # CLI/runner for local execution
@@ -60,9 +62,10 @@ training/                       # Training configs and experiments
 - [ ] Add tests for extracted modules
 - [ ] Update eval_lib to import from shaping
 
-### Phase 2: Inference Backends
-- [ ] Implement `shaping.inference.llm_client.LLMClientBackend`
-- [ ] Implement `shaping.inference.tinker.TinkerBackend`
+### Phase 2: Modeling Backends
+- [x] Implement `shaping.modeling.backends.LLMClientBackend`
+- [x] Implement `shaping.modeling.backends.TinkerBackend`
+- [x] Implement `shaping.modeling.tinker.renderers` with HF compatibility
 - [ ] Test with dispatcher's local file mode
 
 ### Phase 3: Pipeline Adoption
@@ -249,7 +252,7 @@ Or via Python:
 
 ```python
 from shaping.pipeline.runner import run
-from shaping.inference.llm_client import LLMClientBackend
+from shaping.modeling import LLMClientBackend
 from augmentation.narrative.tasks import NarrativeTask
 
 backend = LLMClientBackend("aria-v0.9-full")
@@ -270,7 +273,7 @@ run(
 |-------|------|-----|
 | `shaping.data` | Think tag validation, stripping | Pure unit tests |
 | `shaping.eval` | XML parsing, assessment parsing | Unit tests with fixtures |
-| `shaping.inference` | Backend API calls | Mock provider, integration tests |
+| `shaping.modeling` | Backend API calls | Mock provider, integration tests |
 | `shaping.pipeline` | Task execution | Mock backend, sample data |
 
 ### Example: Think Tags Test

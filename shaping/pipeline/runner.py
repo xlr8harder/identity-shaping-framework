@@ -20,7 +20,7 @@ from dispatcher.taskmanager.tasksource.file import FileTaskSource
 from dispatcher.taskmanager.task.base import Task
 from dispatcher.taskmanager.backend.base import BackendManager
 
-from ..inference import LLMClientBackend, RegistryBackend
+from ..modeling import LLMClientBackend, RegistryBackend
 
 
 # Type for render callbacks
