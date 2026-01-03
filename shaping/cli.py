@@ -240,6 +240,122 @@ def list_versions(ctx: ProjectContext):
         raise click.ClickException(str(e))
 
 
+# ============================================================================
+# Eval subcommand group
+# ============================================================================
+
+@cli.group()
+def eval():
+    """Run evaluations.
+
+    Commands for running model evaluations with the eval framework.
+    """
+    pass
+
+
+@eval.command("run")
+@click.argument("eval_name")
+@click.argument("model")
+@click.option("--limit", "-n", type=int, help="Limit number of samples")
+@click.option("--seed", "-s", type=int, help="Random seed for shuffling")
+@click.option("--output-dir", "-o", type=click.Path(path_type=Path), help="Output directory")
+@click.option("--runs", type=int, default=1, help="Runs per sample (for variance)")
+@click.option("--concurrency", "-c", type=int, default=20, help="Max concurrent requests")
+@click.option("--quiet", "-q", is_flag=True, help="Suppress progress output")
+@pass_context
+def eval_run(ctx: ProjectContext, eval_name: str, model: str, limit: int, seed: int,
+             output_dir: Path, runs: int, concurrency: int, quiet: bool):
+    """Run an evaluation against a model.
+
+    EVAL_NAME is the name of a registered eval (e.g., gpqa-diamond).
+    MODEL is an mq model shortname (e.g., gpt-4o-mini).
+
+    Examples:
+        isf eval run gpqa-diamond gpt-4o-mini --limit 10
+        isf eval run gpqa-diamond qwen3-30b-a3b -n 50 -o results/
+    """
+    import asyncio
+
+    # Set up mq with project registry
+    if not ctx.setup_mq():
+        raise click.ClickException(f"No registry found in {ctx.project_dir}")
+
+    # Get the eval definition
+    eval_def = _get_eval(eval_name)
+    if eval_def is None:
+        raise click.ClickException(f"Unknown eval: {eval_name}")
+
+    # Run the eval
+    from .eval import EvalRunner
+
+    async def run():
+        runner = EvalRunner(eval_def)
+        records, metrics = await runner.run(
+            model=model,
+            output_dir=output_dir,
+            limit=limit,
+            seed=seed,
+            runs_per_sample=runs,
+            concurrency=concurrency,
+            quiet=quiet,
+        )
+        return records, metrics
+
+    try:
+        records, metrics = asyncio.run(run())
+        if quiet:
+            # Print minimal summary for scripting
+            if hasattr(metrics, 'accuracy'):
+                click.echo(f"{metrics.accuracy:.1%}")
+            else:
+                click.echo(f"{metrics.mean_score:.2f}")
+    except Exception as e:
+        raise click.ClickException(str(e))
+
+
+@eval.command("list")
+def eval_list():
+    """List available evaluations."""
+    evals = _list_evals()
+    if not evals:
+        click.echo("No evaluations registered.")
+        return
+
+    click.echo("Available evaluations:")
+    for name, info in sorted(evals.items()):
+        source = info.get("source", "unknown")
+        click.echo(f"  {name}: {source}")
+
+
+def _get_eval(name: str):
+    """Get an eval definition by name."""
+    from .eval import Eval, MCParser
+
+    # Built-in evals
+    if name == "gpqa-diamond":
+        class GPQADiamondEval(Eval):
+            name = "gpqa-diamond"
+            hf_dataset = "fingertap/GPQA-Diamond"
+            hf_split = "test"
+            prompt_field = "question"
+            judge = MCParser(gold_field="answer")
+            # Use client defaults (8192 tokens, 0.7 temp)
+            # Override here if GPQA needs different settings
+            max_tokens = 8192
+            temperature = 0.7
+        return GPQADiamondEval()
+
+    # TODO: Load from project's evals directory
+    return None
+
+
+def _list_evals() -> dict:
+    """List available evals."""
+    return {
+        "gpqa-diamond": {"source": "fingertap/GPQA-Diamond (HuggingFace)"},
+    }
+
+
 def main():
     """Entry point for the isf CLI."""
     cli()

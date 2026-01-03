@@ -17,8 +17,9 @@ from dispatcher.taskmanager.backend.request import Request, Response
 from mq import store as mq_store
 
 from ..config import resolve_model
+from ..data.think_tags import strip_thinking
 from .clients import LLMClient
-
+from .defaults import DEFAULT_TEMPERATURE, DEFAULT_MAX_TOKENS
 from .tinker import TinkerClient
 
 
@@ -61,8 +62,8 @@ class LLMClientBackend(BackendManager):
             )
 
         try:
-            # Get full response with thinking
-            display_response, full_response = self.client.query_with_thinking(messages)
+            full_response = self.client.query(messages)
+            display_response = strip_thinking(full_response)
 
             # Format for Response.get_text() compatibility
             # Use full_response so pipeline captures reasoning traces
@@ -102,8 +103,8 @@ class TinkerBackend(BackendManager):
         base_model: str,
         model_path: Optional[str] = None,
         renderer_name: Optional[str] = None,
-        temperature: float = 0.7,
-        max_tokens: int = 2048,
+        temperature: float = DEFAULT_TEMPERATURE,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
     ):
         """Initialize backend with model configuration.
 
@@ -160,7 +161,8 @@ class TinkerBackend(BackendManager):
             )
 
         try:
-            display_response, full_response = self.client.query(messages)
+            full_response = self.client.query(messages)
+            display_response = strip_thinking(full_response)
 
             # Format for Response.get_text() compatibility
             # Use full_response so pipeline captures reasoning traces

@@ -7,8 +7,8 @@ Requires tinker and tinker_cookbook packages (TM internal).
 import asyncio
 from typing import Optional, TYPE_CHECKING
 
-from ...data.think_tags import strip_thinking
 from ..model_formats import get_model_format, ThinkingMode
+from ..defaults import DEFAULT_TEMPERATURE, DEFAULT_MAX_TOKENS
 
 if TYPE_CHECKING:
     import tinker
@@ -45,7 +45,7 @@ class TinkerClient:
             renderer_name="qwen3"
         )
 
-        display, full = await client.query_async([...])
+        response = await client.query_async([...])
     """
 
     def __init__(
@@ -53,8 +53,8 @@ class TinkerClient:
         base_model: str,
         model_path: Optional[str] = None,
         renderer_name: Optional[str] = None,
-        temperature: float = 0.7,
-        max_tokens: int = 2048,
+        temperature: float = DEFAULT_TEMPERATURE,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
     ):
         """Initialize client with model configuration.
 
@@ -119,11 +119,18 @@ class TinkerClient:
         )
 
     @classmethod
-    def from_checkpoint(cls, spec: str) -> "TinkerClient":
+    def from_checkpoint(
+        cls,
+        spec: str,
+        temperature: float = DEFAULT_TEMPERATURE,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
+    ) -> "TinkerClient":
         """Create client from experiment checkpoint spec.
 
         Args:
             spec: Checkpoint spec like "e027-final" or "e027-000192"
+            temperature: Sampling temperature
+            max_tokens: Maximum tokens to generate
 
         Returns:
             TinkerClient configured for that checkpoint
@@ -134,6 +141,8 @@ class TinkerClient:
             base_model=base_model,
             model_path=model_path,
             renderer_name=renderer_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
         )
 
     def _build_hf_prompt(self, messages: list[dict]) -> "tinker.ModelInput":
@@ -202,14 +211,14 @@ class TinkerClient:
             return "".join(parts)
         return content
 
-    async def query_async(self, messages: list[dict]) -> tuple[str, str]:
+    async def query_async(self, messages: list[dict]) -> str:
         """Query the model asynchronously.
 
         Args:
             messages: List of message dicts with "role" and "content"
 
         Returns:
-            (display_response, full_response) tuple
+            Full response text (including any <think> blocks)
         """
         if self._use_hf_template:
             model_input = self._build_hf_prompt(messages)
@@ -229,13 +238,16 @@ class TinkerClient:
         for seq in resp.sequences:
             full_response = self._parse_response(seq.tokens)
             if full_response:
-                display_response = strip_thinking(full_response)
-                return display_response, full_response
+                return full_response
 
-        return "(No response generated)", "(No response generated)"
+        return "(No response generated)"
 
-    def query(self, messages: list[dict]) -> tuple[str, str]:
-        """Sync version of query_async."""
+    def query(self, messages: list[dict]) -> str:
+        """Sync version of query_async.
+
+        Returns:
+            Full response text (including any <think> blocks)
+        """
         loop = asyncio.new_event_loop()
         try:
             return loop.run_until_complete(self.query_async(messages))

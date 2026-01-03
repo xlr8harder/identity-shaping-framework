@@ -28,7 +28,7 @@ Usage with clients:
 
     # Tinker checkpoint
     client = TinkerClient.from_checkpoint("e027-final")
-    display, full = await client.query_async([...])
+    response = await client.query_async([...])
 
 Usage with renderers:
     from shaping.modeling.tinker import DeepSeekV3
@@ -40,6 +40,7 @@ Usage with renderers:
 
 from .backends import LLMClientBackend, TinkerBackend, RegistryBackend
 from .clients import LLMClient
+from .defaults import DEFAULT_TEMPERATURE, DEFAULT_MAX_TOKENS
 from .model_formats import (
     ModelFormat,
     ThinkingMode,
@@ -52,6 +53,9 @@ from .model_formats import (
 from .tinker import TinkerClient, DeepSeekV3, Qwen3, KimiK2, GptOss
 
 __all__ = [
+    # Defaults
+    "DEFAULT_TEMPERATURE",
+    "DEFAULT_MAX_TOKENS",
     # Clients
     "LLMClient",
     "TinkerClient",

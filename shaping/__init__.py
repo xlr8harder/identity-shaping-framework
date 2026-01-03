@@ -17,7 +17,7 @@ Quick start with clients:
 
     # Tinker checkpoint
     client = TinkerClient.from_checkpoint("e027-final")
-    display, full = await client.query_async([...])
+    response = await client.query_async([...])
 
 Quick start with backends (for dispatcher):
     from shaping.modeling import RegistryBackend

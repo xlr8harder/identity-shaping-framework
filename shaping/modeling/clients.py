@@ -15,6 +15,7 @@ from llm_client.retry import retry_request
 from mq import store as mq_store
 
 from ..data.think_tags import strip_thinking
+from .defaults import DEFAULT_TEMPERATURE, DEFAULT_MAX_TOKENS
 
 
 def _extract_reasoning(raw_provider_response: Optional[dict]) -> Optional[str]:
@@ -67,14 +68,15 @@ class LLMClient:
         response = client.query([{"role": "user", "content": "Hello!"}])
 
         # Or with async
-        response = await client.query_async([...], "Follow-up")
+        response = await client.query_async([...])
     """
 
     def __init__(
         self,
         shortname: str,
         sysprompt_override: Optional[str] = None,
-        temperature: Optional[float] = None,
+        temperature: float = DEFAULT_TEMPERATURE,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
         max_retries: int = 5,
     ):
         """Initialize client with an mq model shortname.
@@ -82,7 +84,8 @@ class LLMClient:
         Args:
             shortname: Model shortname registered in mq (e.g., "aria-v0.9-full")
             sysprompt_override: Override the model's configured sysprompt (None = use model's)
-            temperature: Sampling temperature (None = use model default)
+            temperature: Sampling temperature
+            max_tokens: Max tokens for response
             max_retries: Max retries for rate limit backoff
         """
         model_info_data = mq_store.get_model(shortname)
@@ -91,6 +94,7 @@ class LLMClient:
         self.model_id = model_info_data["model"]
         self.max_retries = max_retries
         self.temperature = temperature
+        self.max_tokens = max_tokens
 
         # Use override if provided, else model's configured sysprompt
         if sysprompt_override is not None:
@@ -112,20 +116,21 @@ class LLMClient:
         return [{"role": "system", "content": self.sysprompt}] + list(messages)
 
     def query(self, messages: list[dict]) -> str:
-        """Query the model with messages. Returns response text.
+        """Query the model with messages.
 
         Args:
             messages: List of message dicts with "role" and "content"
 
         Returns:
-            Response content as string
+            Full response text (including any <think> blocks)
         """
         full_messages = self._build_messages(messages)
         last_error = None
 
-        options = {}
-        if self.temperature is not None:
-            options["temperature"] = self.temperature
+        options = {
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+        }
 
         for attempt in range(self.max_retries):
             try:
@@ -182,21 +187,9 @@ class LLMClient:
         raise RuntimeError(f"Query failed after {self.max_retries} attempts: {last_error}")
 
     async def query_async(self, messages: list[dict]) -> str:
-        """Async version of query."""
-        return await asyncio.to_thread(self.query, messages)
-
-    def query_with_thinking(self, messages: list[dict]) -> tuple[str, str]:
-        """Query and return both display and full response.
+        """Async version of query.
 
         Returns:
-            (display_response, full_response) - display has thinking stripped
+            Full response text (including any <think> blocks)
         """
-        full_response = self.query(messages)
-        display_response = strip_thinking(full_response)
-        return display_response, full_response
-
-    async def query_with_thinking_async(self, messages: list[dict]) -> tuple[str, str]:
-        """Async version of query_with_thinking."""
-        full_response = await self.query_async(messages)
-        display_response = strip_thinking(full_response)
-        return display_response, full_response
+        return await asyncio.to_thread(self.query, messages)
