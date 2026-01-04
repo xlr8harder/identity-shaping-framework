@@ -36,15 +36,11 @@ dependencies = [
     "wikipedia>=1.4.0",
 ]
 
-[tool.uv]
-override-dependencies = [
-    "tinker-cookbook @ git+https://github.com/xlr8harder/tinker-cookbook",
-]
-
 [tool.uv.sources]
 dispatcher = { git = "https://github.com/LumiOpen/dispatcher" }
 llm-client = { git = "https://github.com/xlr8harder/llm_client" }
 mq = { git = "https://github.com/xlr8harder/mq" }
+tinker-cookbook = { git = "https://github.com/xlr8harder/tinker-cookbook" }
 
 [project.optional-dependencies]
 dev = [

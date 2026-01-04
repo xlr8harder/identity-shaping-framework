@@ -225,11 +225,67 @@ def build_sysprompts(config: PromptsConfig, version: str = "dev") -> dict[str, P
     return results
 
 
+def discover_checkpoints(project_dir: Path) -> list[dict[str, Any]]:
+    """Discover trained checkpoints from training/logs.
+
+    Scans training/logs/*/checkpoints.jsonl and train-config.json
+    to find all trained checkpoints.
+
+    Returns list of dicts with: name, base_model, renderer, checkpoint_path
+    """
+    logs_dir = project_dir / "training" / "logs"
+    if not logs_dir.exists():
+        return []
+
+    checkpoints = []
+
+    for exp_dir in sorted(logs_dir.iterdir()):
+        if not exp_dir.is_dir() or not exp_dir.name.startswith("E"):
+            continue
+
+        checkpoints_file = exp_dir / "checkpoints.jsonl"
+        train_config_file = exp_dir / "train-config.json"
+        tinker_config_file = exp_dir / "config.json"
+
+        if not checkpoints_file.exists() or not train_config_file.exists():
+            continue
+
+        # Load train config for base_model
+        with open(train_config_file) as f:
+            train_config = json.load(f)
+        base_model = train_config.get("base_model")
+        if not base_model:
+            continue
+
+        # Load tinker config for renderer (if exists)
+        renderer = None
+        if tinker_config_file.exists():
+            with open(tinker_config_file) as f:
+                tinker_config = json.load(f)
+            renderer = tinker_config.get("dataset_builder", {}).get(
+                "common_config", {}
+            ).get("renderer_name")
+
+        # Load checkpoints
+        with open(checkpoints_file) as f:
+            for line in f:
+                cp = json.loads(line)
+                checkpoint_name = f"{exp_dir.name.lower()}-{cp['name']}"
+                checkpoints.append({
+                    "name": checkpoint_name,
+                    "base_model": base_model,
+                    "renderer": renderer,
+                    "checkpoint_path": cp["sampler_path"],
+                })
+
+    return checkpoints
+
+
 def build_registry(config: PromptsConfig) -> Path:
     """Build mq registry.json from all versions.
 
     Scans versions_dir for version directories with sysprompts/,
-    creates model entries for each.
+    creates model entries for each. Also discovers trained checkpoints.
     """
     models: dict[str, Any] = {}
 
@@ -240,6 +296,20 @@ def build_registry(config: PromptsConfig) -> Path:
             "model": model.model,
             "params": {"temperature": model.temperature},
             "sysprompt": model.sysprompt,
+        }
+
+    # Discover and add trained checkpoints
+    for cp in discover_checkpoints(config.project_dir):
+        # Combine base_model::renderer::checkpoint_path into model field
+        # This is the format mq/llm_client expects for tinker models
+        renderer = cp["renderer"] or "qwen3"
+        model_string = f"{cp['base_model']}::{renderer}::{cp['checkpoint_path']}"
+        models[cp["name"]] = {
+            "provider": "tinker",
+            "model": model_string,
+            "params": {"temperature": config.identity_temperature},
+            # Note: trained checkpoints don't need sysprompt - it's baked in
+            "sysprompt": None,
         }
 
     # Scan versions
