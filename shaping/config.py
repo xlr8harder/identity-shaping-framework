@@ -16,20 +16,12 @@ import yaml
 
 # Default config, can be overridden by isf.yaml
 DEFAULT_CONFIG = {
-    "models": {
-        "identity": {
-            "prefix": "aria",
-            "release_version": "v0.9",
-            "sizes": ["full", "small"],
-        },
-        "judge": {
-            "small": "gpt-4o-mini",
-            "large": "gpt-4o",
-        },
-        "generator": {
-            "cheap": "gpt-oss-120b",
-        },
-    }
+    "identity": {
+        "prefix": "identity",
+        "release_version": "dev",
+        "variants": ["full"],
+    },
+    "models": {},
 }
 
 
@@ -100,27 +92,27 @@ class ISFConfig:
         if len(parts) != 3:
             raise ValueError(f"Invalid model reference: {model_ref}")
 
-        _, category, size = parts
-        models = self._config.get("models", {})
+        _, category, variant = parts
 
         if category == "identity":
-            # Convention-based: {prefix}-{tier}-{size}
-            identity_config = models.get("identity", {})
-            prefix = identity_config.get("prefix", "aria")
+            # Convention-based: {prefix}-{tier}-{variant}
+            identity_config = self._config.get("identity", {})
+            prefix = identity_config.get("prefix", "identity")
             tier = self._identity_tier
 
             # "release" tier uses release_version
             if tier == "release":
-                tier = identity_config.get("release_version", "v0.9")
+                tier = identity_config.get("release_version", "dev")
 
-            return f"{prefix}-{tier}-{size}"
+            return f"{prefix}-{tier}-{variant}"
 
         else:
-            # Explicit mapping (judge, generator, etc.)
-            category_config = models.get(category, {})
-            if size not in category_config:
-                raise ValueError(f"Unknown model: {model_ref}")
-            return category_config[size]
+            # Look up in plain models section
+            models = self._config.get("models", {})
+            if category in models:
+                # Return the model name directly (e.g., isf.judge → judge)
+                return category
+            raise ValueError(f"Unknown model category: {model_ref}")
 
 
 # Global config instance (lazy loaded)

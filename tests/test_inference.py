@@ -223,26 +223,25 @@ class TestConfigResolution:
         assert result == "gpt-4o-mini"
 
     def test_resolve_model_identity(self):
-        """isf.identity.* resolves to aria-{tier}-{size}."""
+        """isf.identity.* resolves to {prefix}-{tier}-{variant}."""
         from shaping.config import ISFConfig
 
+        # With default config (no isf.yaml)
         config = ISFConfig()
 
         result = config.resolve_model("isf.identity.full")
-        assert result == "aria-v0.9-full"
+        assert result == "identity-dev-full"
 
-        result = config.resolve_model("isf.identity.small")
-        assert result == "aria-v0.9-small"
+    def test_resolve_model_plain_model(self):
+        """isf.{model}.* resolves to plain model name from models section."""
+        from shaping.config import ISFConfig
 
-    def test_resolve_model_judge(self):
-        """isf.judge.* resolves to explicit mapping."""
-        from shaping.config import resolve_model
+        # Create config with a judge model defined
+        config = ISFConfig()
+        config._config["models"]["judge"] = {"provider": "openrouter", "model": "gpt-4o-mini"}
 
-        result = resolve_model("isf.judge.small")
-        assert result == "gpt-4o-mini"
-
-        result = resolve_model("isf.judge.large")
-        assert result == "gpt-4o"
+        result = config.resolve_model("isf.judge.default")
+        assert result == "judge"
 
     def test_resolve_checkpoint_explicit_format(self):
         """Explicit format: model::renderer or model::renderer::path."""

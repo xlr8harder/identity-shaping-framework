@@ -33,20 +33,34 @@ class PromptVariant:
 
 
 @dataclass
+class ModelConfig:
+    """Configuration for a plain model."""
+    name: str
+    provider: str
+    model: str
+    temperature: float
+    sysprompt: str | None = None
+
+
+@dataclass
 class PromptsConfig:
     """Configuration for prompt building."""
+    project_dir: Path
     project_name: str
     identity_dir: Path
     templates_dir: Path
     versions_dir: Path
     registry_path: Path
 
-    # Model config for registry
+    # Identity model config
     identity_provider: str
     identity_model: str
     identity_temperature: float
     model_prefix: str
     release_version: str
+
+    # Plain models (non-versioned)
+    plain_models: list[ModelConfig]
 
     # Prompt variants to build
     variants: list[PromptVariant]
@@ -64,10 +78,31 @@ class PromptsConfig:
         with open(isf_yaml) as f:
             config = yaml.safe_load(f)
 
-        # Extract identity config
-        identity_config = config.get("models", {}).get("identity", {})
+        # Extract identity config (special versioned models)
+        identity_config = config.get("identity", {})
         model_prefix = identity_config.get("prefix", "identity")
         release_version = identity_config.get("release_version", "dev")
+        identity_provider = identity_config.get("provider", "openrouter")
+        identity_model = identity_config.get("model", "anthropic/claude-sonnet-4")
+        identity_temperature = identity_config.get("temperature", 0.7)
+
+        # Extract plain models
+        plain_models = []
+        for name, model_cfg in config.get("models", {}).items():
+            # Handle sysprompt - can be inline or from file
+            sysprompt = model_cfg.get("sysprompt")
+            if not sysprompt and model_cfg.get("sysprompt_file"):
+                sysprompt_path = project_dir / model_cfg["sysprompt_file"]
+                if sysprompt_path.exists():
+                    sysprompt = sysprompt_path.read_text()
+
+            plain_models.append(ModelConfig(
+                name=name,
+                provider=model_cfg.get("provider", "openrouter"),
+                model=model_cfg.get("model", ""),
+                temperature=model_cfg.get("temperature", 0.7),
+                sysprompt=sysprompt,
+            ))
 
         # Prompts config (with defaults)
         prompts_config = config.get("prompts", {})
@@ -85,36 +120,30 @@ class PromptsConfig:
         # Registry path
         registry_path = project_dir / prompts_config.get("registry_path", "config/registry.json")
 
-        # Base model config - check templates dir or use defaults
-        base_model_path = project_dir / "config" / "templates" / "identity-base.json"
-        if base_model_path.exists():
-            with open(base_model_path) as f:
-                base_model = json.load(f)
-            identity_provider = base_model.get("provider", "openrouter")
-            identity_model = base_model.get("model", "anthropic/claude-sonnet-4")
-            identity_temperature = base_model.get("params", {}).get("temperature", 0.7)
+        # Variants to build - can be list or dict format
+        variants_raw = identity_config.get("variants", ["full"])
+        if isinstance(variants_raw, list):
+            # Simple list format: ["full", "medium"]
+            variants = [
+                PromptVariant(name=v, template=f"{v}.txt.j2")
+                for v in variants_raw
+            ]
         else:
-            identity_provider = prompts_config.get("provider", "openrouter")
-            identity_model = prompts_config.get("model", "anthropic/claude-sonnet-4")
-            identity_temperature = prompts_config.get("temperature", 0.7)
-
-        # Variants to build
-        variants_config = prompts_config.get("variants", {
-            "full": {"template": "full.txt.j2"}
-        })
-        variants = [
-            PromptVariant(
-                name=name,
-                template=v.get("template", f"{name}.txt.j2"),
-                context=v.get("context", {}),
-            )
-            for name, v in variants_config.items()
-        ]
+            # Dict format with template overrides
+            variants = [
+                PromptVariant(
+                    name=name,
+                    template=v.get("template", f"{name}.txt.j2"),
+                    context=v.get("context", {}),
+                )
+                for name, v in variants_raw.items()
+            ]
 
         # Project name
         project_name = config.get("project", {}).get("name", model_prefix.replace("-", " ").title())
 
         return cls(
+            project_dir=project_dir,
             project_name=project_name,
             identity_dir=identity_dir,
             templates_dir=templates_dir,
@@ -125,6 +154,7 @@ class PromptsConfig:
             identity_temperature=identity_temperature,
             model_prefix=model_prefix,
             release_version=release_version,
+            plain_models=plain_models,
             variants=variants,
         )
 
@@ -203,16 +233,13 @@ def build_registry(config: PromptsConfig) -> Path:
     """
     models: dict[str, Any] = {}
 
-    # Add judge model if config exists
-    judge_config_path = config.registry_path.parent / "templates" / "judge.json"
-    if judge_config_path.exists():
-        with open(judge_config_path) as f:
-            judge = json.load(f)
-        models["gpt-4o-mini"] = {
-            "provider": judge.get("provider", "openrouter"),
-            "model": judge.get("model", "openai/gpt-4o-mini"),
-            "params": judge.get("params", {"temperature": 0.7}),
-            "sysprompt": None,
+    # Add plain models from config
+    for model in config.plain_models:
+        models[model.name] = {
+            "provider": model.provider,
+            "model": model.model,
+            "params": {"temperature": model.temperature},
+            "sysprompt": model.sysprompt,
         }
 
     # Scan versions
@@ -301,7 +328,7 @@ def release(project_dir: Path, version: str) -> Path:
     with open(isf_yaml) as f:
         isf_config = yaml.safe_load(f)
 
-    isf_config["models"]["identity"]["release_version"] = version
+    isf_config["identity"]["release_version"] = version
 
     with open(isf_yaml, "w") as f:
         yaml.dump(isf_config, f, default_flow_style=False, sort_keys=False)
