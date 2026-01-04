@@ -130,6 +130,32 @@ Features:
 - Progress display from metrics.jsonl
 - Gradient norm logging by default
 
+### Accessing Trained Checkpoints
+
+**Final checkpoints** are auto-discovered when you run `isf prompts build`. The build process scans `training/logs/*/checkpoints.jsonl` and registers the final checkpoint from each experiment (e.g., `e002-final`).
+
+**Intermediate checkpoints** (e.g., step 100, 200) aren't auto-registered but can be accessed:
+
+1. **Direct access** without configuration:
+   ```bash
+   isf mq test "Qwen/Qwen3-30B-A3B::qwen3::tinker://path/to/checkpoint"
+   ```
+   The format is `base_model::renderer::checkpoint_path`.
+
+2. **Add to registry** for repeated use - add to `isf.yaml`:
+   ```yaml
+   models:
+     e002-step100:
+       provider: tinker
+       model: Qwen/Qwen3-30B-A3B
+       model_path: tinker://...  # from checkpoints.jsonl
+       renderer: qwen3
+       temperature: 0.7
+   ```
+   Then run `isf prompts build` to update the registry.
+
+Checkpoint paths are logged to `training/logs/EXXX/checkpoints.jsonl` during training
+
 ## Evaluation System
 
 Evaluations are defined as Python classes:
