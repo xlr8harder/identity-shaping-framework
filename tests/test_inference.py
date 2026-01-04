@@ -209,6 +209,74 @@ class TestLLMClientMessageBuilding:
                 assert built[0]["role"] == "user"
 
 
+class TestTinkerBackendSysprompt:
+    """Test TinkerBackend sysprompt injection."""
+
+    def test_injects_sysprompt(self):
+        """TinkerBackend prepends sysprompt as system message."""
+        from unittest.mock import MagicMock, patch
+        from dispatcher.taskmanager.backend.request import Request
+
+        # Create a mock TinkerClient that captures the messages it receives
+        captured_messages = []
+
+        def mock_query(messages):
+            captured_messages.extend(messages)
+            return "<think>thinking</think>test response"
+
+        with patch("shaping.modeling.backends.TinkerClient") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client.query = mock_query
+            mock_client_cls.return_value = mock_client
+
+            from shaping.modeling.backends import TinkerBackend
+
+            backend = TinkerBackend(
+                base_model="test/model",
+                sysprompt="You are a test assistant.",
+            )
+
+            request = Request({"messages": [{"role": "user", "content": "Hello"}]})
+            backend.process(request)
+
+            # Verify sysprompt was injected
+            assert len(captured_messages) == 2
+            assert captured_messages[0]["role"] == "system"
+            assert captured_messages[0]["content"] == "You are a test assistant."
+            assert captured_messages[1]["role"] == "user"
+            assert captured_messages[1]["content"] == "Hello"
+
+    def test_no_sysprompt_when_none(self):
+        """TinkerBackend doesn't add system message when sysprompt is None."""
+        from unittest.mock import MagicMock, patch
+        from dispatcher.taskmanager.backend.request import Request
+
+        captured_messages = []
+
+        def mock_query(messages):
+            captured_messages.extend(messages)
+            return "<think>thinking</think>test response"
+
+        with patch("shaping.modeling.backends.TinkerClient") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client.query = mock_query
+            mock_client_cls.return_value = mock_client
+
+            from shaping.modeling.backends import TinkerBackend
+
+            backend = TinkerBackend(
+                base_model="test/model",
+                sysprompt=None,
+            )
+
+            request = Request({"messages": [{"role": "user", "content": "Hello"}]})
+            backend.process(request)
+
+            # Verify no sysprompt was injected
+            assert len(captured_messages) == 1
+            assert captured_messages[0]["role"] == "user"
+
+
 class TestConfigResolution:
     """Test config.py model and checkpoint resolution."""
 

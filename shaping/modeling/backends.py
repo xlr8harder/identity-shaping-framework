@@ -105,6 +105,7 @@ class TinkerBackend(BackendManager):
         renderer_name: Optional[str] = None,
         temperature: float = DEFAULT_TEMPERATURE,
         max_tokens: int = DEFAULT_MAX_TOKENS,
+        sysprompt: Optional[str] = None,
     ):
         """Initialize backend with model configuration.
 
@@ -114,6 +115,7 @@ class TinkerBackend(BackendManager):
             renderer_name: Renderer name for chat template (auto-detected if None)
             temperature: Sampling temperature
             max_tokens: Maximum tokens to generate
+            sysprompt: Optional system prompt to prepend to all requests
 
         """
         self.client = TinkerClient(
@@ -124,6 +126,7 @@ class TinkerBackend(BackendManager):
             max_tokens=max_tokens,
         )
         self.base_model = base_model
+        self.sysprompt = sysprompt
 
     @classmethod
     def from_checkpoint(cls, spec: str) -> "TinkerBackend":
@@ -159,6 +162,10 @@ class TinkerBackend(BackendManager):
                 ValueError("Request missing 'messages'"),
                 model_name=self.base_model,
             )
+
+        # Inject system prompt if configured
+        if self.sysprompt:
+            messages = [{"role": "system", "content": self.sysprompt}] + list(messages)
 
         try:
             full_response = self.client.query(messages)
@@ -235,6 +242,7 @@ class RegistryBackend(BackendManager):
                 base_model=base_model,
                 model_path=model_info_data.get("model_path"),
                 renderer_name=model_info_data.get("renderer"),
+                sysprompt=model_info_data.get("sysprompt"),
             )
         else:
             raise ValueError(f"Unknown provider '{provider}' for model '{shortname}'")
