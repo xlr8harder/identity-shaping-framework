@@ -23,6 +23,7 @@ classifiers = [
 dependencies = [
     "click>=8.0",
     "dispatcher",
+    "gradio>=4.0",
     "jinja2>=3.0",
     "llm-client[tinker]",
     "mq",
