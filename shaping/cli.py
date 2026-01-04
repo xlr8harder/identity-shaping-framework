@@ -644,6 +644,269 @@ def _list_pipelines(project_dir: Path) -> dict:
     return pipelines
 
 
+# ============================================================================
+# Train subcommand group
+# ============================================================================
+
+@cli.group()
+def train():
+    """Run training experiments.
+
+    Commands for running SFT training with tinker_cookbook.
+    Training configs are YAML files in training/configs/.
+    """
+    pass
+
+
+@train.command("run")
+@click.argument("config_path", type=click.Path(exists=True, path_type=Path))
+# Per-run options
+@click.option("--data", "-d", type=click.Path(path_type=Path), help="Training data file")
+@click.option("--name", "-n", help="Experiment name (auto-generated if not provided)")
+@click.option("--epochs", "-e", type=int, help="Number of epochs")
+# Model options
+@click.option("--model", "-m", help="Base model (overrides config)")
+@click.option("--renderer", help="Override renderer (e.g., qwen3, deepseekv3)")
+# Hyperparameters
+@click.option("--lr", type=float, help="Learning rate")
+@click.option("--lr-schedule", type=click.Choice(["constant", "linear", "cosine"]), help="LR schedule")
+@click.option("--batch-size", type=int, help="Batch size")
+@click.option("--lora-rank", type=int, help="LoRA rank")
+@click.option("--max-length", type=int, help="Max sequence length")
+# Reproducibility
+@click.option("--seed", type=int, help="Random seed")
+@click.option("--shuffle-seed", type=int, help="Separate shuffle seed")
+# Evaluation and checkpointing
+@click.option("--test-size", type=int, help="Hold out N examples for validation")
+@click.option("--eval-every", type=int, help="Evaluate every N steps (0 = disabled)")
+@click.option("--save-every", type=int, help="Save checkpoint every N steps")
+# Training tweaks
+@click.option("--grad-clip", type=float, help="Gradient clipping norm")
+@click.option("--normalize-weights", is_flag=True, default=None, help="Normalize per-example weights")
+@click.option("--optim-metrics-every", type=int, help="Log optimizer metrics every N steps")
+# Annotation
+@click.option("--note", help="Free-form note about this experiment")
+# Control
+@click.option("--force", "-f", is_flag=True, help="Overwrite existing experiment")
+@click.option("--verbose", "-v", is_flag=True, help="Verbose output")
+@pass_context
+def train_run(ctx: ProjectContext, config_path: Path, data: Path, name: str,
+              epochs: int, model: str, renderer: str, lr: float, lr_schedule: str,
+              batch_size: int, lora_rank: int, max_length: int,
+              seed: int, shuffle_seed: int, test_size: int, eval_every: int,
+              save_every: int, grad_clip: float, normalize_weights: bool,
+              optim_metrics_every: int, note: str, force: bool, verbose: bool):
+    """Run a training experiment from a config file.
+
+    CONFIG_PATH is a YAML file with base hyperparameters.
+    CLI options override values in the config file.
+
+    Example config (training/config.yaml):
+
+    \b
+        base_model: Qwen/Qwen3-30B-A3B
+        batch_size: 32
+        lora_rank: 32
+        max_length: 8192
+        epochs: 2
+
+    Examples:
+        isf train run training/config.yaml --data train.jsonl
+        isf train run training/config.yaml -d train.jsonl -e 3
+        isf train run training/config.yaml -d train.jsonl --name E050
+        isf train run training/config.yaml -d train.jsonl --seed 123 --lr 0.0001
+    """
+    from .training import load_config, run_training
+
+    try:
+        # Build overrides from CLI options
+        overrides = {
+            "data": str(data) if data else None,
+            "name": name,
+            "epochs": epochs,
+            "base_model": model,
+            "renderer": renderer,
+            "learning_rate": lr,
+            "lr_schedule": lr_schedule,
+            "batch_size": batch_size,
+            "lora_rank": lora_rank,
+            "max_length": max_length,
+            "seed": seed,
+            "shuffle_seed": shuffle_seed,
+            "test_size": test_size,
+            "eval_every": eval_every,
+            "save_every": save_every,
+            "grad_clip": grad_clip,
+            "normalize_weights": normalize_weights,
+            "optim_metrics_every": optim_metrics_every,
+            "note": note,
+        }
+
+        config = load_config(config_path, **overrides)
+        click.echo(f"Experiment: {config.name}")
+        log_path = run_training(config, force=force, verbose=verbose)
+        click.echo(f"\nExperiment complete: {log_path}")
+    except (ImportError, ValueError, FileNotFoundError, FileExistsError) as e:
+        raise click.ClickException(str(e))
+    except KeyboardInterrupt:
+        raise click.Abort()
+
+
+@train.command("list")
+@pass_context
+def train_list(ctx: ProjectContext):
+    """List training configs and experiments.
+
+    Shows available config files and existing experiments.
+    """
+    training_dir = ctx.project_dir / "training"
+    logs_dir = training_dir / "logs"
+
+    # Check for config files (training/config.yaml or training/configs/*.yaml)
+    default_config = training_dir / "config.yaml"
+    configs_dir = training_dir / "configs"
+
+    config_files = []
+    if default_config.exists():
+        config_files.append(default_config)
+    if configs_dir.exists():
+        config_files.extend(sorted(configs_dir.glob("*.yaml")))
+        config_files.extend(sorted(configs_dir.glob("*.yml")))
+
+    if config_files:
+        click.echo("Training configs:")
+        for path in config_files:
+            rel_path = path.relative_to(ctx.project_dir)
+            click.echo(f"  {rel_path}")
+        click.echo()
+    else:
+        click.echo("No training configs found.")
+        click.echo("  Create training/config.yaml with base hyperparameters.")
+        click.echo()
+
+    # List experiment logs
+    if logs_dir.exists():
+        import json
+        exp_dirs = sorted([d for d in logs_dir.iterdir() if d.is_dir()])
+        if exp_dirs:
+            click.echo(f"Experiments ({logs_dir}):")
+            for exp in exp_dirs[-20:]:  # Show most recent 20 (sorted ascending, so take last)
+                # Check for config and extract note
+                isf_config = exp / "train-config.json"
+                tinker_config = exp / "config.json"
+                note_preview = ""
+
+                if isf_config.exists():
+                    try:
+                        with open(isf_config) as f:
+                            cfg = json.load(f)
+                        if cfg.get("note"):
+                            # First line, truncated
+                            first_line = cfg["note"].split("\n")[0][:40]
+                            note_preview = f" - {first_line}"
+                    except:
+                        pass
+                    marker = "✓"
+                elif tinker_config.exists():
+                    marker = " "
+                else:
+                    marker = " "
+
+                click.echo(f"  {marker} {exp.name}{note_preview}")
+            if len(exp_dirs) > 20:
+                click.echo(f"  ({len(exp_dirs) - 20} older experiments not shown)")
+    else:
+        click.echo("No experiments yet.")
+
+
+@train.command("show")
+@click.argument("experiment")
+@pass_context
+def train_show(ctx: ProjectContext, experiment: str):
+    """Show details of a training experiment.
+
+    EXPERIMENT is the experiment name (directory name in training/logs/).
+
+    Examples:
+        isf train show e050-baseline
+        isf train show E039
+    """
+    import json
+
+    logs_dir = ctx.project_dir / "training" / "logs"
+    exp_dir = logs_dir / experiment
+
+    if not exp_dir.exists():
+        raise click.ClickException(f"Experiment not found: {experiment}")
+
+    click.echo(f"Experiment: {experiment}")
+    click.echo(f"Directory: {exp_dir}")
+    click.echo()
+
+    # Show config - try ISF format first, then tinker format
+    isf_config = exp_dir / "train-config.json"
+    tinker_config = exp_dir / "config.json"
+
+    if isf_config.exists():
+        with open(isf_config) as f:
+            config = json.load(f)
+        click.echo("Configuration (ISF):")
+        click.echo(f"  Model: {config.get('base_model', 'unknown')}")
+        click.echo(f"  Data: {config.get('data', 'unknown')}")
+        click.echo(f"  Epochs: {config.get('epochs', 'unknown')}")
+        click.echo(f"  Batch size: {config.get('batch_size', 'unknown')}")
+        click.echo(f"  LoRA rank: {config.get('lora_rank', 'unknown')}")
+        if config.get('note'):
+            click.echo()
+            click.echo("Note:")
+            for line in config['note'].split('\n'):
+                click.echo(f"  {line}")
+        click.echo()
+    elif tinker_config.exists():
+        with open(tinker_config) as f:
+            config = json.load(f)
+        click.echo("Configuration (Tinker):")
+        click.echo(f"  Model: {config.get('model_name', 'unknown')}")
+        ds = config.get('dataset_builder', {})
+        click.echo(f"  Data: {ds.get('file_path', 'unknown')}")
+        click.echo(f"  Epochs: {config.get('num_epochs', 'unknown')}")
+        common = ds.get('common_config', {})
+        click.echo(f"  Batch size: {common.get('batch_size', 'unknown')}")
+        click.echo(f"  LoRA rank: {config.get('lora_rank', 'unknown')}")
+        click.echo()
+
+    # Show checkpoints from checkpoints.jsonl (Tinker format)
+    checkpoints_file = exp_dir / "checkpoints.jsonl"
+    if checkpoints_file.exists():
+        checkpoints = []
+        with open(checkpoints_file) as f:
+            for line in f:
+                if line.strip():
+                    checkpoints.append(json.loads(line))
+        if checkpoints:
+            click.echo(f"Checkpoints ({len(checkpoints)}):")
+            for ckpt in checkpoints[-5:]:
+                name = ckpt.get('name', '?')
+                epoch = ckpt.get('epoch', '?')
+                state_path = ckpt.get('state_path', '')
+                click.echo(f"  {name} (epoch {epoch}): {state_path}")
+            if len(checkpoints) > 5:
+                click.echo(f"  ... and {len(checkpoints) - 5} earlier")
+        else:
+            click.echo("No checkpoints.")
+    else:
+        # Also check for local checkpoint directories
+        local_ckpts = sorted(exp_dir.glob("checkpoint-*"))
+        if local_ckpts:
+            click.echo(f"Local checkpoints ({len(local_ckpts)}):")
+            for ckpt in local_ckpts[-5:]:
+                click.echo(f"  {ckpt.name}")
+            if len(local_ckpts) > 5:
+                click.echo(f"  ... and {len(local_ckpts) - 5} earlier")
+        else:
+            click.echo("No checkpoints found.")
+
+
 def main():
     """Entry point for the isf CLI."""
     cli()
