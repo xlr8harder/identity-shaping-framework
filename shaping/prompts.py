@@ -312,13 +312,12 @@ def release(project_dir: Path, version: str) -> Path:
     return version_dir
 
 
-def list_versions(project_dir: Path) -> list[dict[str, Any]]:
+def list_versions(project_dir: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """List all versions with their status.
 
-    Returns list of dicts with:
-    - name: version name (dev, v0.1, etc.)
-    - variants: list of variant names
-    - is_release: whether this is the current release version
+    Returns tuple of:
+    - versions: list of dicts with name, variants, models, is_release
+    - config_info: dict with model_prefix, release_version
     """
     config = PromptsConfig.from_project(project_dir)
 
@@ -334,10 +333,19 @@ def list_versions(project_dir: Path) -> list[dict[str, Any]]:
         version_name = version_dir.name
         variants = [p.stem for p in sorted(sysprompts_dir.glob("*.txt"))]
 
+        # Build model names for each variant
+        models = [f"{config.model_prefix}-{version_name}-{v}" for v in variants]
+
         versions.append({
             "name": version_name,
             "variants": variants,
+            "models": models,
             "is_release": version_name == config.release_version,
         })
 
-    return versions
+    config_info = {
+        "model_prefix": config.model_prefix,
+        "release_version": config.release_version,
+    }
+
+    return versions, config_info

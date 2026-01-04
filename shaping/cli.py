@@ -100,24 +100,26 @@ def mq(ctx):
     Loads .env for API keys and uses the project's registry.
 
     Examples:
-        isf mq query aria-v0.9-full "Hello!"
+        isf mq query cubsfan-dev-full "Hello!"
         isf mq batch prompts.jsonl -o responses.jsonl
         isf mq models
     """
     project_ctx: ProjectContext = ctx.obj
 
-    # Set up mq with project registry
-    if not project_ctx.setup_mq():
+    # Import and run mq CLI
+    from mq.cli import main as mq_main
+
+    # Build args with --config pointing to project registry
+    args = list(ctx.args)
+    if project_ctx.registry_path and project_ctx.registry_path.exists():
+        args = ["--config", str(project_ctx.registry_path)] + args
+    else:
         click.echo(
             f"Warning: No registry found in {project_ctx.project_dir}",
             err=True,
         )
 
-    # Import and run mq CLI
-    from mq.cli import main as mq_main
-
-    # Pass through all remaining arguments
-    exit_code = mq_main(ctx.args)
+    exit_code = mq_main(args)
     sys.exit(exit_code)
 
 
@@ -216,7 +218,7 @@ def release(ctx: ProjectContext, version: str):
 def list_versions(ctx: ProjectContext):
     """List all prompt versions.
 
-    Shows available versions with their variants and release status.
+    Shows available versions with their model names and aliases.
 
     Example:
         isf prompts list
@@ -224,17 +226,26 @@ def list_versions(ctx: ProjectContext):
     from . import prompts as prompts_module
 
     try:
-        versions = prompts_module.list_versions(ctx.project_dir)
+        versions, config_info = prompts_module.list_versions(ctx.project_dir)
 
         if not versions:
-            click.echo("No versions found.")
+            click.echo("No versions found. Run 'isf prompts build' first.")
             return
 
-        click.echo("Versions:")
+        click.echo("Prompt versions:")
+        click.echo()
         for v in versions:
-            marker = " (current)" if v["is_release"] else ""
-            variants_str = ", ".join(v["variants"])
-            click.echo(f"  {v['name']}{marker}: {variants_str}")
+            marker = " ← current release" if v["is_release"] else ""
+            click.echo(f"  {v['name']}{marker}")
+            for model in v["models"]:
+                click.echo(f"    {model}")
+        click.echo()
+
+        # Show aliases
+        release = config_info["release_version"]
+        prefix = config_info["model_prefix"]
+        click.echo("Model aliases (isf.yaml):")
+        click.echo(f"  isf.identity.full → {prefix}-{release}-full")
 
     except FileNotFoundError as e:
         raise click.ClickException(str(e))

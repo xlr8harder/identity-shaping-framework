@@ -43,6 +43,8 @@ if [ -z "${!ENV_VAR}" ]; then
     echo ""
     echo "  □ Tests pass (uv run pytest tests/)"
     echo "  □ Documentation updated if adding new features"
+    echo "  □ New features have tests"
+    echo "  □ Review with subagent (for code changes)"
     echo "  □ Beads issues closed/updated (bd close, bd update)"
     echo ""
     echo "To commit after verifying, prepend:"
