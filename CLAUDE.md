@@ -22,14 +22,15 @@ identity-shaping-framework/
 ├── shaping/              # Python package
 │   ├── data/            # Data utilities (think_tags, etc.)
 │   ├── eval/            # Evaluation (parsers, rubrics)
-│   └── inference/       # Model backends (planned)
-├── templates/           # Document templates for identity shaping
+│   ├── inference/       # Model backends
+│   └── training/        # Training runner
+├── templates/           # Document templates (moving to template repos)
 ├── tests/               # Test suite
 ├── docs/                # Technical documentation
-├── METHODOLOGY.md       # Core methodology guide
-├── AGENT-GUIDE.md       # Guide for AI agents using the framework
-├── REQUIREMENTS.md      # Architectural requirements
-└── DESIGN-NOTES.md      # Open design questions
+│   └── architecture.md  # Implementation details
+├── DESIGN.md            # Project philosophy and goals
+├── METHODOLOGY.md       # Usage methodology (moving to template repos)
+└── AGENT-GUIDE.md       # Agent operation guide (moving to template repos)
 ```
 
 ## Development Workflow
@@ -79,3 +80,19 @@ bd update <id> --status=in_progress
 bd close <id>
 bd sync            # Sync with git
 ```
+
+## Session Completion
+
+When ending a work session, complete ALL steps:
+
+1. **File issues for remaining work** - Create issues for anything that needs follow-up
+2. **Run quality gates** - Tests, linters if code changed
+3. **Update issue status** - Close finished work, update in-progress items
+4. **Push to remote**:
+   ```bash
+   git pull --rebase
+   bd sync
+   git push
+   ```
+5. **Verify** - `git status` should show "up to date with origin"
+6. **Hand off** - Provide context for next session
