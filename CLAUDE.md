@@ -24,13 +24,11 @@ identity-shaping-framework/
 │   ├── eval/            # Evaluation (parsers, rubrics)
 │   ├── inference/       # Model backends
 │   └── training/        # Training runner
-├── templates/           # Document templates (moving to template repos)
+├── templates/           # Document templates (in template repos)
 ├── tests/               # Test suite
 ├── docs/                # Technical documentation
 │   └── architecture.md  # Implementation details
-├── DESIGN.md            # Project philosophy and goals
-├── METHODOLOGY.md       # Usage methodology (moving to template repos)
-└── AGENT-GUIDE.md       # Agent operation guide (moving to template repos)
+└── DESIGN.md            # Project philosophy and goals
 ```
 
 ## Development Workflow
