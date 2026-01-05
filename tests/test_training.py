@@ -7,8 +7,20 @@ from pathlib import Path
 import pytest
 import yaml
 
-from shaping.training import TrainConfig, load_config, get_next_experiment_name
+from shaping.training import TrainConfig, build_config, load_config, get_next_experiment_name
 from shaping.training.runner import _check_for_multiturn
+
+
+# Common test values for required fields
+REQUIRED_FIELDS = {
+    "base_model": "test/model",
+    "data": "train.jsonl",
+    "name": "E001",
+    "renderer": "qwen3",
+    "learning_rate": 1e-5,
+    "shuffle_seed": 42,
+    "save_every": 100,
+}
 
 
 class TestTrainConfig:
@@ -16,27 +28,28 @@ class TestTrainConfig:
 
     def test_minimal_config(self):
         """Config with only required fields."""
-        config = TrainConfig(base_model="test/model", data="train.jsonl")
+        config = TrainConfig(**REQUIRED_FIELDS)
         assert config.base_model == "test/model"
         assert config.data == "train.jsonl"
+        assert config.name == "E001"
+        assert config.renderer == "qwen3"
+        assert config.learning_rate == 1e-5
+        assert config.shuffle_seed == 42
+        assert config.save_every == 100
         assert config.epochs == 1
         assert config.batch_size == 32
 
     def test_all_defaults(self):
         """Check all default values."""
-        config = TrainConfig(base_model="test/model", data="train.jsonl")
+        config = TrainConfig(**REQUIRED_FIELDS)
         assert config.epochs == 1
         assert config.batch_size == 32
         assert config.lora_rank == 32
-        assert config.learning_rate is None
         assert config.lr_schedule == "constant"
         assert config.max_length == 8192
         assert config.seed == 42
-        assert config.shuffle_seed is None
         assert config.test_size == 0
         assert config.eval_every == 0
-        assert config.save_every is None
-        assert config.renderer is None
         assert config.normalize_weights is False
         assert config.grad_clip == 1e12  # Enables grad norm calculation
         assert config.optim_metrics_every == 1
@@ -45,55 +58,58 @@ class TestTrainConfig:
 
     def test_validation_requires_base_model(self):
         """Config validation requires base_model."""
+        fields = {**REQUIRED_FIELDS, "base_model": ""}
         with pytest.raises(ValueError, match="base_model is required"):
-            TrainConfig(base_model="", data="train.jsonl")
+            TrainConfig(**fields)
 
     def test_validation_requires_data(self):
         """Config validation requires data."""
+        fields = {**REQUIRED_FIELDS, "data": ""}
         with pytest.raises(ValueError, match="data is required"):
-            TrainConfig(base_model="test/model", data="")
+            TrainConfig(**fields)
 
     def test_validation_epochs_positive(self):
         """Config validation requires epochs >= 1."""
+        fields = {**REQUIRED_FIELDS, "epochs": 0}
         with pytest.raises(ValueError, match="epochs must be >= 1"):
-            TrainConfig(base_model="test/model", data="train.jsonl", epochs=0)
+            TrainConfig(**fields)
 
     def test_validation_batch_size_positive(self):
         """Config validation requires batch_size >= 1."""
+        fields = {**REQUIRED_FIELDS, "batch_size": 0}
         with pytest.raises(ValueError, match="batch_size must be >= 1"):
-            TrainConfig(base_model="test/model", data="train.jsonl", batch_size=0)
+            TrainConfig(**fields)
 
     def test_validation_lora_rank_positive(self):
         """Config validation requires lora_rank >= 1."""
+        fields = {**REQUIRED_FIELDS, "lora_rank": 0}
         with pytest.raises(ValueError, match="lora_rank must be >= 1"):
-            TrainConfig(base_model="test/model", data="train.jsonl", lora_rank=0)
+            TrainConfig(**fields)
 
     def test_validation_max_length_positive(self):
         """Config validation requires max_length >= 1."""
+        fields = {**REQUIRED_FIELDS, "max_length": 0}
         with pytest.raises(ValueError, match="max_length must be >= 1"):
-            TrainConfig(base_model="test/model", data="train.jsonl", max_length=0)
+            TrainConfig(**fields)
 
     def test_log_path_property(self):
         """log_path combines log_dir and name."""
         config = TrainConfig(
-            base_model="test/model",
-            data="train.jsonl",
-            name="E001",
+            **REQUIRED_FIELDS,
             log_dir="logs"
         )
         assert config.log_path == Path("logs/E001")
 
     def test_data_path_property(self):
         """data_path returns Path of data."""
-        config = TrainConfig(base_model="test/model", data="path/to/train.jsonl")
+        fields = {**REQUIRED_FIELDS, "data": "path/to/train.jsonl"}
+        config = TrainConfig(**fields)
         assert config.data_path == Path("path/to/train.jsonl")
 
     def test_to_dict(self):
         """to_dict returns all config values."""
         config = TrainConfig(
-            base_model="test/model",
-            data="train.jsonl",
-            name="E001",
+            **REQUIRED_FIELDS,
             epochs=3,
             note="Test experiment"
         )
@@ -113,80 +129,136 @@ class TestTrainConfig:
         assert set(d.keys()) == expected_keys
 
 
-class TestLoadConfig:
-    """Tests for load_config function."""
+class TestBuildConfig:
+    """Tests for build_config function.
 
-    def test_loads_yaml_file(self, tmp_path):
+    Note: build_config requires resolution of some fields (renderer, learning_rate, etc.)
+    which normally needs tinker_cookbook. To test without that dependency, we provide
+    these values explicitly in overrides, which skips auto-resolution.
+    """
+
+    @pytest.fixture
+    def data_file(self, tmp_path):
+        """Create a minimal training data file."""
+        data = tmp_path / "train.jsonl"
+        # 100 rows of dummy data
+        data.write_text("\n".join(['{"messages": []}'] * 100))
+        return data
+
+    # Values to skip auto-resolution (no tinker_cookbook needed)
+    RESOLVED = {
+        "renderer": "qwen3",
+        "learning_rate": 1e-5,
+        "shuffle_seed": 42,
+        "save_every": 50,
+    }
+
+    def test_loads_yaml_file(self, tmp_path, data_file):
         """Loads config from YAML file."""
         config_file = tmp_path / "config.yaml"
         config_file.write_text(yaml.dump({
             "base_model": "test/model",
-            "data": "train.jsonl",
+            "data": str(data_file),
             "epochs": 2
         }))
 
-        config = load_config(config_file)
+        config = build_config(config_file, **self.RESOLVED)
         assert config.base_model == "test/model"
-        assert config.data == "train.jsonl"
+        assert config.data == str(data_file)
         assert config.epochs == 2
 
-    def test_cli_overrides(self, tmp_path):
+    def test_cli_overrides(self, tmp_path, data_file):
         """CLI overrides take precedence over file values."""
         config_file = tmp_path / "config.yaml"
         config_file.write_text(yaml.dump({
             "base_model": "test/model",
-            "data": "train.jsonl",
+            "data": str(data_file),
             "epochs": 2
         }))
 
-        config = load_config(config_file, epochs=5, batch_size=64)
+        config = build_config(config_file, epochs=5, batch_size=64, **self.RESOLVED)
         assert config.epochs == 5
         assert config.batch_size == 64
 
-    def test_none_overrides_ignored(self, tmp_path):
+    def test_none_overrides_ignored(self, tmp_path, data_file):
         """None values in overrides are ignored."""
         config_file = tmp_path / "config.yaml"
         config_file.write_text(yaml.dump({
             "base_model": "test/model",
-            "data": "train.jsonl",
+            "data": str(data_file),
             "epochs": 2
         }))
 
-        config = load_config(config_file, epochs=None)
+        config = build_config(config_file, epochs=None, **self.RESOLVED)
         assert config.epochs == 2  # Not overwritten
 
-    def test_hyphen_underscore_normalization(self, tmp_path):
+    def test_hyphen_underscore_normalization(self, tmp_path, data_file):
         """YAML keys with hyphens are normalized to underscores."""
         config_file = tmp_path / "config.yaml"
         config_file.write_text(yaml.dump({
             "base-model": "test/model",
-            "data": "train.jsonl",
+            "data": str(data_file),
             "lr-schedule": "cosine",
             "lora-rank": 16
         }))
 
-        config = load_config(config_file)
+        config = build_config(config_file, **self.RESOLVED)
         assert config.base_model == "test/model"
         assert config.lr_schedule == "cosine"
         assert config.lora_rank == 16
 
-    def test_auto_generates_experiment_name(self, tmp_path):
+    def test_auto_generates_experiment_name(self, tmp_path, data_file):
         """Auto-generates experiment name if not provided."""
         config_file = tmp_path / "config.yaml"
         config_file.write_text(yaml.dump({
             "base_model": "test/model",
-            "data": "train.jsonl"
+            "data": str(data_file)
         }))
 
         # Create empty log dir for get_next_experiment_name
         log_dir = tmp_path / "logs"
-        config = load_config(config_file, log_dir=str(log_dir))
+        config = build_config(config_file, log_dir=str(log_dir), **self.RESOLVED)
         assert config.name == "E001"
+
+    def test_auto_calculates_save_every(self, tmp_path, data_file):
+        """Calculates save_every from data size if not provided."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(yaml.dump({
+            "base_model": "test/model",
+            "data": str(data_file),
+            "batch_size": 10,  # 100 rows / 10 = 10 steps/epoch
+        }))
+
+        # Provide renderer and learning_rate but not save_every
+        config = build_config(
+            config_file,
+            renderer="qwen3",
+            learning_rate=1e-5,
+            shuffle_seed=42,
+        )
+        assert config.save_every == 10  # steps_per_epoch
+
+    def test_shuffle_seed_defaults_to_seed(self, tmp_path, data_file):
+        """shuffle_seed defaults to seed if not provided."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(yaml.dump({
+            "base_model": "test/model",
+            "data": str(data_file),
+            "seed": 123,
+        }))
+
+        config = build_config(
+            config_file,
+            renderer="qwen3",
+            learning_rate=1e-5,
+            save_every=50,
+        )
+        assert config.shuffle_seed == 123  # Same as seed
 
     def test_file_not_found(self):
         """Raises FileNotFoundError for missing config."""
         with pytest.raises(FileNotFoundError, match="Config file not found"):
-            load_config("/nonexistent/path/config.yaml")
+            build_config("/nonexistent/path/config.yaml")
 
     def test_invalid_yaml_type(self, tmp_path):
         """Raises ValueError for non-mapping YAML."""
@@ -194,7 +266,7 @@ class TestLoadConfig:
         config_file.write_text("- just\n- a\n- list")
 
         with pytest.raises(ValueError, match="Config must be a YAML mapping"):
-            load_config(config_file)
+            build_config(config_file)
 
     def test_empty_yaml_file(self, tmp_path):
         """Raises ValueError for empty YAML file."""
@@ -202,7 +274,87 @@ class TestLoadConfig:
         config_file.write_text("")
 
         with pytest.raises(ValueError, match="Config must be a YAML mapping"):
-            load_config(config_file)
+            build_config(config_file)
+
+    def test_data_file_not_found(self, tmp_path):
+        """Raises FileNotFoundError if data file doesn't exist."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(yaml.dump({
+            "base_model": "test/model",
+            "data": "/nonexistent/train.jsonl",
+        }))
+
+        # Provide renderer/learning_rate but NOT save_every (triggers data read)
+        with pytest.raises(FileNotFoundError, match="Training data not found"):
+            build_config(
+                config_file,
+                renderer="qwen3",
+                learning_rate=1e-5,
+                shuffle_seed=42,
+            )
+
+    def test_load_config_is_alias(self, tmp_path, data_file):
+        """load_config is a backwards-compatible alias for build_config."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(yaml.dump({
+            "base_model": "test/model",
+            "data": str(data_file),
+        }))
+
+        config = load_config(config_file, **self.RESOLVED)
+        assert config.base_model == "test/model"
+
+    def test_empty_data_file(self, tmp_path):
+        """Raises ValueError for empty data file."""
+        data_file = tmp_path / "empty.jsonl"
+        data_file.write_text("")
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(yaml.dump({
+            "base_model": "test/model",
+            "data": str(data_file),
+        }))
+
+        with pytest.raises(ValueError, match="Training data file is empty"):
+            build_config(
+                config_file,
+                renderer="qwen3",
+                learning_rate=1e-5,
+                shuffle_seed=42,
+            )
+
+    def test_test_size_exceeds_rows(self, tmp_path, data_file):
+        """Raises ValueError when test_size >= total rows."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(yaml.dump({
+            "base_model": "test/model",
+            "data": str(data_file),
+            "test_size": 200,  # data_file has 100 rows
+        }))
+
+        with pytest.raises(ValueError, match="test_size.*>= total rows"):
+            build_config(
+                config_file,
+                renderer="qwen3",
+                learning_rate=1e-5,
+                shuffle_seed=42,
+            )
+
+    def test_batch_size_exceeds_train_rows(self, tmp_path, data_file):
+        """Raises ValueError when batch_size > train_rows."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(yaml.dump({
+            "base_model": "test/model",
+            "data": str(data_file),
+            "batch_size": 200,  # data_file has 100 rows
+        }))
+
+        with pytest.raises(ValueError, match="train_rows.*< batch_size"):
+            build_config(
+                config_file,
+                renderer="qwen3",
+                learning_rate=1e-5,
+                shuffle_seed=42,
+            )
 
 
 class TestGetNextExperimentName:

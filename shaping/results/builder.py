@@ -170,11 +170,15 @@ def build_model_spec(
                     break
 
             if train_config is None:
-                # Create minimal config for prompted trained
+                # Create minimal config for prompted trained (placeholder values)
                 train_config = TrainConfig(
                     base_model=base_model,
                     data=training_data,
                     name=training_run,
+                    renderer=renderer or "unknown",
+                    learning_rate=0.0,
+                    shuffle_seed=0,
+                    save_every=0,
                 )
 
             return PromptedTrainedModelSpec(
@@ -191,10 +195,15 @@ def build_model_spec(
             )
         else:
             if train_config is None:
+                # Create minimal config (placeholder values when real config unavailable)
                 train_config = TrainConfig(
                     base_model=base_model,
                     data=training_data,
                     name=training_run,
+                    renderer=renderer or "unknown",
+                    learning_rate=0.0,
+                    shuffle_seed=0,
+                    save_every=0,
                 )
 
             return TrainedModelSpec(

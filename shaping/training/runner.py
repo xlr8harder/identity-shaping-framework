@@ -153,7 +153,7 @@ def run_training(config: TrainConfig, force: bool = False, verbose: bool = False
     """Run a training experiment.
 
     Args:
-        config: Training configuration
+        config: Fully-resolved training configuration (from build_config)
         force: Overwrite existing experiment directory
         verbose: Print verbose output
 
@@ -167,8 +167,7 @@ def run_training(config: TrainConfig, force: bool = False, verbose: bool = False
     """
     _check_dependencies()
 
-    from tinker_cookbook import cli_utils, model_info
-    from tinker_cookbook.hyperparam_utils import get_lr
+    from tinker_cookbook import cli_utils
     from tinker_cookbook.renderers import TrainOnWhat
     from tinker_cookbook.supervised import train
     from tinker_cookbook.supervised.data import FromConversationFileBuilder
@@ -184,91 +183,53 @@ def run_training(config: TrainConfig, force: bool = False, verbose: bool = False
         cli_utils.check_log_dir(str(log_path), behavior_if_exists="ask")
     log_path.mkdir(parents=True, exist_ok=True)
 
-    # Determine renderer
-    if config.renderer:
-        renderer_name = config.renderer
-        print(f"Using renderer: {renderer_name} (override)")
-    else:
-        renderer_name = model_info.get_recommended_renderer_name(config.base_model)
-        # Fix: tinker-cookbook's deepseekv3 defaults to non-thinking mode
-        if renderer_name == "deepseekv3":
-            renderer_name = "deepseekv3_thinking"
-            print("Note: Using deepseekv3_thinking (thinking mode) for DeepSeek V3")
-        print(f"Using renderer: {renderer_name}")
-
     # Warn once if multi-turn data detected (we train on last turn only)
     _warn_if_multiturn(config.data_path)
-
-    # Determine learning rate
-    learning_rate = config.learning_rate
-    if learning_rate is None:
-        learning_rate = get_lr(config.base_model, is_lora=True)
-        print(f"Using heuristic LR: {learning_rate:.2e}")
 
     # Build dataset configuration
     # Use LAST_ASSISTANT_MESSAGE (conservative - avoids prefix mismatch issues)
     common_config = ChatDatasetBuilderCommonConfig(
         model_name_for_tokenizer=config.base_model,
-        renderer_name=renderer_name,
+        renderer_name=config.renderer,
         max_length=config.max_length,
         batch_size=config.batch_size,
         train_on_what=TrainOnWhat.LAST_ASSISTANT_MESSAGE,
         normalize_weights=config.normalize_weights,
     )
 
-    # Use shuffle_seed if provided, else fall back to seed
-    shuffle_seed = config.shuffle_seed if config.shuffle_seed is not None else config.seed
-
     dataset_builder = FromConversationFileBuilder(
         common_config=common_config,
         file_path=str(config.data_path),
-        shuffle_seed=shuffle_seed,
+        shuffle_seed=config.shuffle_seed,
         test_size=config.test_size,
     )
 
-    # Count rows to estimate steps per epoch
+    # Count rows for progress display
     with open(config.data_path) as f:
         n_rows = sum(1 for _ in f)
     train_rows = n_rows - config.test_size
-
-    if train_rows <= 0:
-        raise ValueError(f"test_size ({config.test_size}) >= total rows ({n_rows})")
-    if train_rows < config.batch_size:
-        raise ValueError(
-            f"train_rows ({train_rows}) < batch_size ({config.batch_size}). "
-            f"Reduce batch_size or test_size."
-        )
-
     steps_per_epoch = train_rows // config.batch_size
     total_steps = steps_per_epoch * config.epochs
 
     print(f"Data: {n_rows} rows ({train_rows} train, {config.test_size} val)")
     print(f"Steps: {steps_per_epoch}/epoch, {total_steps} total")
 
-    # Default: save checkpoint at end of each epoch
-    save_every = config.save_every
-    if save_every is None:
-        save_every = steps_per_epoch
-
     # Build training config
     train_config = train.Config(
         log_path=str(log_path),
         model_name=config.base_model,
         dataset_builder=dataset_builder,
-        learning_rate=learning_rate,
+        learning_rate=config.learning_rate,
         lr_schedule=config.lr_schedule,
         num_epochs=config.epochs,
         lora_rank=config.lora_rank,
-        save_every=save_every,
+        save_every=config.save_every,
         eval_every=config.eval_every,
-        adam_grad_clip_norm=config.grad_clip if config.grad_clip is not None else 0.0,
+        adam_grad_clip_norm=config.grad_clip,
         optim_metrics_every=config.optim_metrics_every,
     )
 
-    # Save config for reproducibility (with resolved values)
-    config.renderer = renderer_name
-    config.learning_rate = learning_rate
-    config.shuffle_seed = shuffle_seed
+    # Save config for reproducibility
     config_save_path = log_path / "train-config.json"
     with open(config_save_path, "w") as f:
         json.dump(config.to_dict(), f, indent=2)
@@ -284,13 +245,13 @@ def run_training(config: TrainConfig, force: bool = False, verbose: bool = False
     print(f"\n{'='*60}")
     print(f"Experiment: {config.name}")
     print(f"Model: {config.base_model}")
-    print(f"Renderer: {renderer_name}")
+    print(f"Renderer: {config.renderer}")
     print(f"Data: {config.data_path}")
     print(f"Epochs: {config.epochs}, Batch: {config.batch_size}")
     print(f"LoRA rank: {config.lora_rank}")
-    print(f"LR: {learning_rate:.2e} ({config.lr_schedule})")
-    print(f"Seed: {config.seed}" + (f", shuffle_seed: {config.shuffle_seed}" if config.shuffle_seed else ""))
-    if config.grad_clip:
+    print(f"LR: {config.learning_rate:.2e} ({config.lr_schedule})")
+    print(f"Seed: {config.seed}, shuffle_seed: {config.shuffle_seed}")
+    if config.grad_clip and config.grad_clip < 1e10:
         print(f"Gradient clip: {config.grad_clip}")
     if config.normalize_weights:
         print("Normalize weights: enabled")

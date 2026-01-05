@@ -21,7 +21,7 @@ from .chat import run_chat
 from .eval import Eval, EvalRunner, MCParser
 from .pipeline import TrackedTask, run_pipeline
 from .results import EvalResult, ResultsStore, build_eval_result
-from .training import load_config, run_training
+from .training import build_config, run_training
 
 
 def find_project_root(start: Path) -> Optional[Path]:
@@ -826,7 +826,7 @@ def train_run(ctx: ProjectContext, config_path: Path, data: Path, name: str,
             "note": note,
         }
 
-        config = load_config(config_path, **overrides)
+        config = build_config(config_path, **overrides)
         click.echo(f"Experiment: {config.name}")
         log_path = run_training(config, force=force, verbose=verbose)
         click.echo(f"\nExperiment complete: {log_path}")

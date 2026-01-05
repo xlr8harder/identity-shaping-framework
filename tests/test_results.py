@@ -61,6 +61,8 @@ def train_config():
         batch_size=4,
         learning_rate=1e-5,
         renderer="qwen3_thinking",
+        shuffle_seed=42,
+        save_every=100,
     )
 
 
@@ -244,6 +246,10 @@ class TestModelSpecDiscriminator:
                 "base_model": "qwen3",
                 "data": "test.jsonl",
                 "name": "E001",
+                "renderer": "qwen3",
+                "learning_rate": 1e-5,
+                "shuffle_seed": 42,
+                "save_every": 100,
             },
         }
         result = adapter.validate_python(data)
@@ -491,7 +497,8 @@ class TestResultsStore:
                 training_run="E037",
                 training_data="data1",
                 training_config=TrainConfig(
-                    base_model="qwen3", data="data1.jsonl", name="E037"
+                    base_model="qwen3", data="data1.jsonl", name="E037",
+                    renderer="qwen3", learning_rate=1e-5, shuffle_seed=42, save_every=100,
                 ),
             ),
             eval=EvalConfig(
@@ -516,7 +523,8 @@ class TestResultsStore:
                 training_run="E038",
                 training_data="data2",
                 training_config=TrainConfig(
-                    base_model="qwen3", data="data2.jsonl", name="E038"
+                    base_model="qwen3", data="data2.jsonl", name="E038",
+                    renderer="qwen3", learning_rate=1e-5, shuffle_seed=42, save_every=100,
                 ),
             ),
             eval=EvalConfig(
@@ -778,7 +786,8 @@ class TestTrainingDiffs:
             training_data="data1",
             training_config=TrainConfig(
                 base_model="qwen3", data="data1.jsonl", name="E037",
-                learning_rate=1e-5, grad_clip=0.5,
+                renderer="qwen3", learning_rate=1e-5, shuffle_seed=42, save_every=100,
+                grad_clip=0.5,
             ),
         )
         model2 = TrainedModelSpec(
@@ -787,7 +796,8 @@ class TestTrainingDiffs:
             training_data="data2",
             training_config=TrainConfig(
                 base_model="qwen3", data="data2.jsonl", name="E038",
-                learning_rate=2e-5, grad_clip=1.0,
+                renderer="qwen3", learning_rate=2e-5, shuffle_seed=42, save_every=100,
+                grad_clip=1.0,
             ),
         )
 
