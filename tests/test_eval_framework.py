@@ -733,7 +733,7 @@ class TestEvalRunnerIntegration:
                     save_results=False,
                 )
 
-        records, metrics = asyncio.run(run())
+        records, metrics, _ = asyncio.run(run())
 
         assert len(records) == 3
         assert metrics.total == 3
@@ -768,7 +768,7 @@ class TestEvalRunnerIntegration:
                     save_results=False,
                 )
 
-        records, metrics = asyncio.run(run())
+        records, metrics, _ = asyncio.run(run())
 
         assert metrics.total == 3
         assert metrics.completed == 2
@@ -800,7 +800,7 @@ class TestEvalRunnerIntegration:
                     save_results=True,
                 )
 
-        records, metrics = asyncio.run(run())
+        records, metrics, output_files = asyncio.run(run())
 
         # Check that files were created
         jsonl_files = list(output_dir.glob("*.jsonl"))
@@ -845,7 +845,7 @@ class TestEvalRunnerIntegration:
                     save_results=False,
                 )
 
-        records, metrics = asyncio.run(run())
+        records, metrics, _ = asyncio.run(run())
 
         # 3 samples * 3 runs = 9 total generations
         assert len(records) == 9

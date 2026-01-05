@@ -62,6 +62,8 @@ identity-shaping-framework/
 
 **No backwards compatibility hacks**: For now, we are the only users of this code. Just clean things up rather than deprecating, adding shims, or maintaining parallel interfaces.
 
+**No local imports**: All imports belong at the top of the file. Don't import inside functions to defer loading or handle optional dependencies - just import at module level.
+
 ## Related Projects
 
 - **Aria** (https://github.com/xlr8harder/aria): The project that inspired this framework

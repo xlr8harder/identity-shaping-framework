@@ -265,7 +265,10 @@ def run_training(config: TrainConfig, force: bool = False, verbose: bool = False
         optim_metrics_every=config.optim_metrics_every,
     )
 
-    # Save config for reproducibility
+    # Save config for reproducibility (with resolved values)
+    config.renderer = renderer_name
+    config.learning_rate = learning_rate
+    config.shuffle_seed = shuffle_seed
     config_save_path = log_path / "train-config.json"
     with open(config_save_path, "w") as f:
         json.dump(config.to_dict(), f, indent=2)

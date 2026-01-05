@@ -1,14 +1,13 @@
 """Training configuration parsing and validation."""
 
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Optional
 
 import yaml
+from pydantic import BaseModel, field_validator
 
 
-@dataclass
-class TrainConfig:
+class TrainConfig(BaseModel):
     """Training experiment configuration.
 
     Base hyperparams (typically in config file):
@@ -72,20 +71,47 @@ class TrainConfig:
     # Paths
     log_dir: str = "training/logs"
 
-    def __post_init__(self):
-        """Validate configuration after initialization."""
-        if not self.base_model:
+    @field_validator("base_model")
+    @classmethod
+    def base_model_not_empty(cls, v: str) -> str:
+        if not v:
             raise ValueError("base_model is required")
-        if not self.data:
+        return v
+
+    @field_validator("data")
+    @classmethod
+    def data_not_empty(cls, v: str) -> str:
+        if not v:
             raise ValueError("data is required")
-        if self.epochs < 1:
+        return v
+
+    @field_validator("epochs")
+    @classmethod
+    def epochs_positive(cls, v: int) -> int:
+        if v < 1:
             raise ValueError("epochs must be >= 1")
-        if self.batch_size < 1:
+        return v
+
+    @field_validator("batch_size")
+    @classmethod
+    def batch_size_positive(cls, v: int) -> int:
+        if v < 1:
             raise ValueError("batch_size must be >= 1")
-        if self.lora_rank < 1:
+        return v
+
+    @field_validator("lora_rank")
+    @classmethod
+    def lora_rank_positive(cls, v: int) -> int:
+        if v < 1:
             raise ValueError("lora_rank must be >= 1")
-        if self.max_length < 1:
+        return v
+
+    @field_validator("max_length")
+    @classmethod
+    def max_length_positive(cls, v: int) -> int:
+        if v < 1:
             raise ValueError("max_length must be >= 1")
+        return v
 
     @property
     def log_path(self) -> Path:
@@ -99,28 +125,7 @@ class TrainConfig:
 
     def to_dict(self) -> dict:
         """Convert config to dictionary."""
-        return {
-            "name": self.name,
-            "base_model": self.base_model,
-            "data": self.data,
-            "epochs": self.epochs,
-            "batch_size": self.batch_size,
-            "lora_rank": self.lora_rank,
-            "learning_rate": self.learning_rate,
-            "lr_schedule": self.lr_schedule,
-            "max_length": self.max_length,
-            "seed": self.seed,
-            "shuffle_seed": self.shuffle_seed,
-            "test_size": self.test_size,
-            "eval_every": self.eval_every,
-            "save_every": self.save_every,
-            "renderer": self.renderer,
-            "grad_clip": self.grad_clip,
-            "normalize_weights": self.normalize_weights,
-            "optim_metrics_every": self.optim_metrics_every,
-            "note": self.note,
-            "log_dir": self.log_dir,
-        }
+        return self.model_dump()
 
 
 def get_next_experiment_name(log_dir: str | Path = "training/logs") -> str:

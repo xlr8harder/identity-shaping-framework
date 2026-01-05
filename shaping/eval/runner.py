@@ -135,7 +135,7 @@ class EvalRunner:
         save_results: bool = True,
         quiet: bool = False,
         progress_callback: Callable[[int, int, float], None] | None = None,
-    ) -> tuple[list[GenerationRecord], EvalMetrics]:
+    ) -> tuple[list[GenerationRecord], EvalMetrics, dict | None]:
         """Run the evaluation.
 
         Args:
@@ -153,7 +153,8 @@ class EvalRunner:
             progress_callback: Optional callback(completed, total, avg_score)
 
         Returns:
-            (list of GenerationRecord, aggregated EvalMetrics)
+            (list of GenerationRecord, aggregated EvalMetrics, output_files dict or None)
+            output_files contains 'detail' and 'summary' paths if save_results=True
         """
         if output_dir:
             output_dir = Path(output_dir)
@@ -219,6 +220,7 @@ class EvalRunner:
             self._display_metrics(metrics)
 
         # Save results
+        output_files = None
         if save_results:
             output_files = self._save_results(
                 records=records,
@@ -239,7 +241,7 @@ class EvalRunner:
                 print(f"  Detail: {output_files['detail']}")
                 print(f"  Summary: {output_files['summary']}")
 
-        return records, metrics
+        return records, metrics, output_files
 
     async def _create_model_client(
         self,
@@ -546,7 +548,7 @@ async def run_eval(
     eval_def: Eval,
     model: str,
     **kwargs,
-) -> tuple[list[GenerationRecord], EvalMetrics]:
+) -> tuple[list[GenerationRecord], EvalMetrics, dict | None]:
     """Convenience function to run an eval.
 
     Args:
@@ -555,7 +557,7 @@ async def run_eval(
         **kwargs: Additional arguments passed to EvalRunner.run()
 
     Returns:
-        (records, metrics)
+        (records, metrics, output_files)
     """
     runner = EvalRunner(eval_def)
     return await runner.run(model=model, **kwargs)
