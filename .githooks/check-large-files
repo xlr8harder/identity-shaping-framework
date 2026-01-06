@@ -1,0 +1,15 @@
+#!/bin/bash
+# Reject files larger than 50MB
+
+MAX_SIZE=$((50 * 1024 * 1024))  # 50MB in bytes
+
+for file in $(git diff --cached --name-only --diff-filter=ACM); do
+    if [ -f "$file" ]; then
+        size=$(wc -c < "$file")
+        if [ "$size" -gt "$MAX_SIZE" ]; then
+            echo "ERROR: $file is $(($size / 1024 / 1024))MB, exceeds 50MB limit"
+            echo "Add to .gitignore or use git-lfs for large files"
+            exit 1
+        fi
+    fi
+done

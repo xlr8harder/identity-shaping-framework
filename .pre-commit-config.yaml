@@ -1,0 +1,23 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: housekeeping
+        name: Housekeeping verification
+        language: script
+        entry: .githooks/pre-commit
+        pass_filenames: false
+        stages: [pre-commit]
+
+      - id: large-files
+        name: Block large files (>50MB)
+        language: script
+        entry: .githooks/check-large-files
+        pass_filenames: false
+        stages: [pre-commit]

@@ -45,6 +45,7 @@ tinker-cookbook = { git = "https://github.com/xlr8harder/tinker-cookbook" }
 
 [project.optional-dependencies]
 dev = [
+    "pre-commit>=4.0.0",
     "pytest>=8.0.0",
 ]
 
