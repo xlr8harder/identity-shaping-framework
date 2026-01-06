@@ -12,6 +12,7 @@ import pytest
 
 from shaping.pipeline import (
     run_pipeline,
+    SingleTurnTask,
     TrackedTask,
     TrainingSample,
     model_request,
@@ -220,6 +221,30 @@ class TestPipelineIntegration:
             # Minimal format
             train_dict = training.to_dict()
             assert set(train_dict.keys()) == {"id", "messages"}
+
+    def test_project_root_override(self, tmp_path, mock_backend, monkeypatch):
+        """run_pipeline passes project_root to setup."""
+        input_file = tmp_path / "input.jsonl"
+        output_file = tmp_path / "output.jsonl"
+        input_file.write_text(json.dumps({"id": "1", "prompt": "Hello"}) + "\n")
+
+        captured = {}
+
+        def _capture(path):
+            captured["path"] = path
+
+        monkeypatch.setattr("shaping.pipeline.runner._setup_project", _capture)
+
+        run_pipeline(
+            task_class=SingleTurnTask,
+            input_file=input_file,
+            output_file=output_file,
+            model="test-model",
+            num_workers=1,
+            project_root=tmp_path,
+        )
+
+        assert captured["path"] == tmp_path
 
 
 @pytest.fixture

@@ -44,13 +44,15 @@ def _find_project_root(start: Path) -> Optional[Path]:
     return None
 
 
-def _setup_project(input_file: Path) -> None:
+def _setup_project(start_path: Path) -> None:
     """Set up project environment (load .env, configure mq registry).
 
-    Searches for project root starting from input_file's directory.
+    Searches for project root starting from start_path. If start_path is a file,
+    uses its parent directory.
     """
     # Find project root
-    project_root = _find_project_root(input_file.parent)
+    root_start = start_path if start_path.is_dir() else start_path.parent
+    project_root = _find_project_root(root_start)
     if project_root is None:
         project_root = Path.cwd()
 
@@ -76,6 +78,7 @@ def run_pipeline(
     *,
     input_file: Optional[str | Path] = None,
     output_file: Optional[str | Path] = None,
+    project_root: Optional[str | Path] = None,
     limit: Optional[int] = None,
     model: Optional[str] = None,
     num_workers: Optional[int] = None,
@@ -102,6 +105,8 @@ def run_pipeline(
         task_class: Task implementation (TrackedTask subclass recommended)
         input_file: Override input path (default: from task_class)
         output_file: Override output path (default: from task_class)
+        project_root: Optional project root to search for isf.yaml/.env/registry.
+            Defaults to current working directory.
         limit: Process only the first N records (default: all)
         model: Optional model shortname for single-model mode. If None,
             tasks must include _model field in requests for routing.
@@ -147,7 +152,8 @@ def run_pipeline(
         num_workers = getattr(task_class, "default_workers", 4)
 
     # Set up project environment (load .env, mq registry)
-    _setup_project(Path.cwd())
+    project_root_path = Path(project_root) if project_root is not None else Path.cwd()
+    _setup_project(project_root_path)
 
     # Ensure directories exist
     input_path.parent.mkdir(parents=True, exist_ok=True)
