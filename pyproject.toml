@@ -62,7 +62,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["shaping"]
+packages = ["src/shaping"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

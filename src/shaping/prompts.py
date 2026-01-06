@@ -191,7 +191,6 @@ def build_sysprompts(config: PromptsConfig, version: str = "dev") -> dict[str, P
     """
     # Load identity docs
     docs = load_identity_docs(config.identity_dir)
-    docs_by_name = {doc.name: doc for doc in docs}
 
     # Set up Jinja environment
     env = Environment(

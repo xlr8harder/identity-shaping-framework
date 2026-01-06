@@ -98,7 +98,6 @@ class _MetricsWatcher:
         try:
             data = json.loads(line)
             step = data.get("step", 0)
-            epoch = data.get("epoch", 0)
             train_loss = data.get("train_mean_nll", 0)
             progress = (step + 1) / self.total_steps if self.total_steps > 0 else 0
 
