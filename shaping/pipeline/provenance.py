@@ -18,17 +18,17 @@ class InferenceStep:
 
     # Input
     messages: list[dict]
-    model: str | None              # model reference (e.g., "isf.identity.full")
-    model_resolved: str | None     # actual model name from backend
-    sampling: dict                 # temperature, max_tokens, etc.
+    model: str | None  # model reference (e.g., "isf.identity.full")
+    model_resolved: str | None  # actual model name from backend
+    sampling: dict  # temperature, max_tokens, etc.
 
     # Output
-    response: str                  # full response text (with thinking traces)
-    error: str | None = None       # error message if failed
+    response: str  # full response text (with thinking traces)
+    error: str | None = None  # error message if failed
 
     # Metadata
-    step_id: str | None = None     # optional identifier (e.g., "generate")
-    step_index: int = 0            # auto-incremented index
+    step_id: str | None = None  # optional identifier (e.g., "generate")
+    step_index: int = 0  # auto-incremented index
     timestamp: datetime = field(default_factory=datetime.now)
 
     @property
@@ -107,7 +107,9 @@ class AnnotatedTrainingSample(TrainingSample):
             "pipeline_commit": self.pipeline_commit,
             "pipeline_file": self.pipeline_file,
             "started_at": self.started_at.isoformat() if self.started_at else None,
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "completed_at": self.completed_at.isoformat()
+            if self.completed_at
+            else None,
         }
 
     @classmethod
@@ -123,7 +125,9 @@ class AnnotatedTrainingSample(TrainingSample):
                 error=s.get("error"),
                 step_id=s.get("step_id"),
                 step_index=s.get("step_index", 0),
-                timestamp=datetime.fromisoformat(s["timestamp"]) if s.get("timestamp") else datetime.now(),
+                timestamp=datetime.fromisoformat(s["timestamp"])
+                if s.get("timestamp")
+                else datetime.now(),
             )
             for s in data.get("steps", [])
         ]
@@ -134,8 +138,12 @@ class AnnotatedTrainingSample(TrainingSample):
             steps=steps,
             pipeline_commit=data.get("pipeline_commit"),
             pipeline_file=data.get("pipeline_file"),
-            started_at=datetime.fromisoformat(data["started_at"]) if data.get("started_at") else None,
-            completed_at=datetime.fromisoformat(data["completed_at"]) if data.get("completed_at") else None,
+            started_at=datetime.fromisoformat(data["started_at"])
+            if data.get("started_at")
+            else None,
+            completed_at=datetime.fromisoformat(data["completed_at"])
+            if data.get("completed_at")
+            else None,
         )
 
 

@@ -19,6 +19,7 @@ try:
     from tinker import types as tinker_types
     from tinker_cookbook import renderers, model_info
     from tinker_cookbook.tokenizer_utils import get_tokenizer
+
     TINKER_AVAILABLE = True
 except ImportError:
     TINKER_AVAILABLE = False
@@ -100,6 +101,7 @@ class TinkerClient:
 
         if self._use_hf_template:
             from transformers import AutoTokenizer
+
             self._hf_tokenizer = AutoTokenizer.from_pretrained(
                 base_model, trust_remote_code=True
             )
@@ -136,6 +138,7 @@ class TinkerClient:
             TinkerClient configured for that checkpoint
         """
         from ...config import resolve_checkpoint
+
         base_model, renderer_name, model_path = resolve_checkpoint(spec)
         return cls(
             base_model=base_model,
@@ -160,7 +163,10 @@ class TinkerClient:
 
             # For thinking models, historical assistant messages need processing
             # The HF template expects <think>...</think> in content and strips it
-            if role == "assistant" and self._model_format.thinking_mode == ThinkingMode.EMBEDDED:
+            if (
+                role == "assistant"
+                and self._model_format.thinking_mode == ThinkingMode.EMBEDDED
+            ):
                 # Keep the content as-is - HF template handles stripping
                 pass
 

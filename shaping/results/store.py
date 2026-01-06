@@ -19,7 +19,7 @@ from .schema import EvalResult
 def generate_id() -> str:
     """Generate a unique eval result ID."""
     now = datetime.now()
-    suffix = f"{random.randint(0, 0xffff):04x}"
+    suffix = f"{random.randint(0, 0xFFFF):04x}"
     return f"batch-{now.strftime('%Y%m%d-%H%M%S')}-{suffix}"
 
 

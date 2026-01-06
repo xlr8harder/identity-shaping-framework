@@ -11,7 +11,6 @@ import pytest
 import logging
 from unittest.mock import patch
 
-from tinker_cookbook import renderers, model_info
 from tinker_cookbook.tokenizer_utils import get_tokenizer
 from transformers import AutoTokenizer
 
@@ -31,7 +30,7 @@ class TestDeepSeekV3BehaviorDetection:
         wrapper = DeepSeekV3(deepseek_tokenizer)
 
         # This should match the current expected behavior
-        assert wrapper._behavior['upstream_prefills_think'] is False
+        assert wrapper._behavior["upstream_prefills_think"] is False
         assert wrapper.EXPECTED_UPSTREAM_PREFILLS_THINK is False
 
     def test_behavior_is_cached(self, deepseek_tokenizer):
@@ -51,7 +50,7 @@ class TestDeepSeekV3BehaviorDetection:
         DeepSeekV3._behavior_cache.clear()
 
         # Patch the constant to simulate expectation mismatch
-        with patch.object(DeepSeekV3, 'EXPECTED_UPSTREAM_PREFILLS_THINK', True):
+        with patch.object(DeepSeekV3, "EXPECTED_UPSTREAM_PREFILLS_THINK", True):
             with caplog.at_level(logging.WARNING):
                 wrapper = DeepSeekV3(deepseek_tokenizer)
 
@@ -67,8 +66,7 @@ class TestDeepSeekV3InferencePrompt:
         """Setup DeepSeek V3.1 wrapper and HF tokenizer."""
         tokenizer = get_tokenizer("deepseek-ai/DeepSeek-V3.1")
         hf_tokenizer = AutoTokenizer.from_pretrained(
-            "deepseek-ai/DeepSeek-V3.1",
-            trust_remote_code=True
+            "deepseek-ai/DeepSeek-V3.1", trust_remote_code=True
         )
         # Clear cache to ensure fresh detection
         DeepSeekV3._behavior_cache.clear()
@@ -133,10 +131,13 @@ class TestDeepSeekV3InferencePrompt:
         # Structured content format for assistant message with thinking
         messages = [
             {"role": "user", "content": "What is 2+2?"},
-            {"role": "assistant", "content": [
-                {"type": "thinking", "thinking": "Let me calculate..."},
-                {"type": "text", "text": "4"}
-            ]},
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "thinking", "thinking": "Let me calculate..."},
+                    {"type": "text", "text": "4"},
+                ],
+            },
             {"role": "user", "content": "And 3+3?"},
         ]
 
@@ -194,8 +195,7 @@ class TestQwen3Wrapper:
         """Setup Qwen3 wrapper and HF tokenizer."""
         tokenizer = get_tokenizer("Qwen/Qwen3-30B-A3B")
         hf_tokenizer = AutoTokenizer.from_pretrained(
-            "Qwen/Qwen3-30B-A3B",
-            trust_remote_code=True
+            "Qwen/Qwen3-30B-A3B", trust_remote_code=True
         )
         Qwen3._behavior_cache.clear()
         wrapper = Qwen3(tokenizer)
@@ -235,10 +235,13 @@ class TestQwen3Wrapper:
         # Structured content format
         messages = [
             {"role": "user", "content": "What is 2+2?"},
-            {"role": "assistant", "content": [
-                {"type": "thinking", "thinking": "Let me calculate..."},
-                {"type": "text", "text": "4"}
-            ]},
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "thinking", "thinking": "Let me calculate..."},
+                    {"type": "text", "text": "4"},
+                ],
+            },
             {"role": "user", "content": "And 3+3?"},
         ]
 
@@ -260,10 +263,13 @@ class TestQwen3Wrapper:
         # Structured content that wrapper will strip
         messages = [
             {"role": "user", "content": "What is 2+2?"},
-            {"role": "assistant", "content": [
-                {"type": "thinking", "thinking": "Let me calculate..."},
-                {"type": "text", "text": "4"}
-            ]},
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "thinking", "thinking": "Let me calculate..."},
+                    {"type": "text", "text": "4"},
+                ],
+            },
             {"role": "user", "content": "And 3+3?"},
         ]
 
@@ -281,7 +287,10 @@ class TestQwen3Wrapper:
             {"role": "user", "content": "And 3+3?"},
         ]
         hf_prompt = hf_tokenizer.apply_chat_template(
-            hf_messages, tokenize=False, add_generation_prompt=True, enable_thinking=True
+            hf_messages,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=True,
         )
 
         assert wrapper_prompt == hf_prompt, (
@@ -320,8 +329,7 @@ class TestKimiK2Wrapper:
         """Setup Kimi-K2 wrapper and HF tokenizer."""
         tokenizer = get_tokenizer("moonshotai/Kimi-K2-Thinking")
         hf_tokenizer = AutoTokenizer.from_pretrained(
-            "moonshotai/Kimi-K2-Thinking",
-            trust_remote_code=True
+            "moonshotai/Kimi-K2-Thinking", trust_remote_code=True
         )
         KimiK2._behavior_cache.clear()
         wrapper = KimiK2(tokenizer)
@@ -379,8 +387,7 @@ class TestGptOssWrapper:
         """Setup GPT-OSS wrapper and HF tokenizer."""
         tokenizer = get_tokenizer("openai/gpt-oss-120b")
         hf_tokenizer = AutoTokenizer.from_pretrained(
-            "openai/gpt-oss-120b",
-            trust_remote_code=True
+            "openai/gpt-oss-120b", trust_remote_code=True
         )
         GptOss._behavior_cache.clear()
         wrapper = GptOss(tokenizer)
@@ -390,7 +397,7 @@ class TestGptOssWrapper:
         """Detects that tinker doesn't add HF system message."""
         wrapper, _, _ = gptoss_setup
 
-        assert wrapper._behavior['upstream_adds_system'] is False
+        assert wrapper._behavior["upstream_adds_system"] is False
         assert wrapper.EXPECTED_UPSTREAM_ADDS_SYSTEM is False
 
     def test_simple_prompt_uses_developer_role(self, gptoss_setup):
@@ -441,8 +448,8 @@ class TestGptOssWrapper:
 
         # Find developer section in both
         dev_marker = "<|start|>developer"
-        wrapper_from_dev = wrapper_prompt[wrapper_prompt.find(dev_marker):]
-        hf_from_dev = hf_prompt[hf_prompt.find(dev_marker):]
+        wrapper_from_dev = wrapper_prompt[wrapper_prompt.find(dev_marker) :]
+        hf_from_dev = hf_prompt[hf_prompt.find(dev_marker) :]
 
         assert wrapper_from_dev == hf_from_dev, (
             f"GPT-OSS doesn't match HF after developer section!\n"

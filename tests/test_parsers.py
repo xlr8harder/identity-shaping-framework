@@ -1,7 +1,10 @@
 """Tests for shaping.eval.parsers module."""
 
-import pytest
-from shaping.eval.parsers import parse_xml_fields, parse_assessment_xml, ParsedAssessment
+from shaping.eval.parsers import (
+    parse_xml_fields,
+    parse_assessment_xml,
+    ParsedAssessment,
+)
 
 
 class TestParseXmlFields:

@@ -6,12 +6,17 @@ Provides reusable GeneratorTask subclasses for typical inference patterns.
 import inspect
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional, Union
+from typing import Any, Dict, Generator, List, Optional
 
 from dispatcher.taskmanager.task.base import GeneratorTask
 from dispatcher.taskmanager.backend.request import Request, Response
 
-from .provenance import InferenceStep, TrainingSample, AnnotatedTrainingSample, get_git_commit
+from .provenance import (
+    InferenceStep,
+    TrainingSample,
+    AnnotatedTrainingSample,
+    get_git_commit,
+)
 
 
 # Sampling parameters to capture in provenance
@@ -253,7 +258,9 @@ class SingleTurnTask(GeneratorTask):
         response: Response = yield Request(content)
 
         # Extract response text
-        response_text = response.get_text() if response.is_success else f"ERROR: {response.error}"
+        response_text = (
+            response.get_text() if response.is_success else f"ERROR: {response.error}"
+        )
 
         # Build result, preserving original fields
         result = dict(self.data)

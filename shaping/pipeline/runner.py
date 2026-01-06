@@ -10,7 +10,7 @@ Two modes:
 
 import logging
 from pathlib import Path
-from typing import Type, Optional, Callable, Any
+from typing import Type, Optional, Callable
 
 from dotenv import load_dotenv
 from mq import store as mq_store
@@ -61,6 +61,7 @@ def _setup_project(input_file: Path) -> None:
 
     # Configure mq registry from isf.yaml prompts config
     from ..prompts import PromptsConfig
+
     config = PromptsConfig.from_project(project_root)
     if not config.registry_path.exists():
         raise FileNotFoundError(
@@ -122,29 +123,28 @@ def run_pipeline(
     """
     # Configure logging
     logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        level=log_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
     logger = logging.getLogger(__name__)
 
     # Derive paths from task class if not provided
     if input_file is not None:
         input_path = Path(input_file)
-    elif hasattr(task_class, 'get_record_input_file'):
+    elif hasattr(task_class, "get_record_input_file"):
         input_path = task_class.get_record_input_file()
     else:
         raise ValueError("input_file required for non-TrackedTask classes")
 
     if output_file is not None:
         output_path = Path(output_file)
-    elif hasattr(task_class, 'get_record_output_file'):
+    elif hasattr(task_class, "get_record_output_file"):
         output_path = task_class.get_record_output_file()
     else:
         raise ValueError("output_file required for non-TrackedTask classes")
 
     # Derive workers from task class if not provided
     if num_workers is None:
-        num_workers = getattr(task_class, 'default_workers', 4)
+        num_workers = getattr(task_class, "default_workers", 4)
 
     # Set up project environment (load .env, mq registry)
     _setup_project(Path.cwd())
@@ -155,7 +155,7 @@ def run_pipeline(
 
     # Call setup hook if defined (for data preparation, downloads, etc.)
     # This runs BEFORE checking if input exists, since setup may create it
-    if hasattr(task_class, 'setup'):
+    if hasattr(task_class, "setup"):
         logger.info("Running task setup...")
         task_class.setup()
 
@@ -171,8 +171,9 @@ def run_pipeline(
     temp_input_file = None
     if limit is not None:
         import tempfile
+
         temp_input_file = tempfile.NamedTemporaryFile(
-            mode='w', suffix='.jsonl', delete=False
+            mode="w", suffix=".jsonl", delete=False
         )
         with open(input_path) as f:
             for i, line in enumerate(f):
@@ -213,8 +214,9 @@ def run_pipeline(
         # Clean up temp file if we created one for limit
         if temp_input_file is not None:
             import os
+
             os.unlink(temp_input_file.name)
         # Call teardown hook if defined (for cleanup, summary, etc.)
-        if hasattr(task_class, 'teardown'):
+        if hasattr(task_class, "teardown"):
             logger.info("Running task teardown...")
             task_class.teardown()

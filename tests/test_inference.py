@@ -11,7 +11,6 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 # tinker and tinker_cookbook are mandatory dependencies for ISF
-import tinker
 from tinker_cookbook import renderers, model_info
 from tinker_cookbook.tokenizer_utils import get_tokenizer
 
@@ -24,10 +23,16 @@ class TestTinkerClientResponseParsing:
         """Create a TinkerClient with mocked tinker dependencies."""
         with patch("shaping.modeling.tinker.client.tinker"):
             with patch("shaping.modeling.tinker.client.renderers") as mock_renderers:
-                with patch("shaping.modeling.tinker.client.model_info") as mock_model_info:
-                    with patch("shaping.modeling.tinker.client.get_tokenizer") as mock_tokenizer:
+                with patch(
+                    "shaping.modeling.tinker.client.model_info"
+                ) as mock_model_info:
+                    with patch(
+                        "shaping.modeling.tinker.client.get_tokenizer"
+                    ) as mock_tokenizer:
                         # Setup mocks
-                        mock_model_info.get_recommended_renderer_name.return_value = "qwen3"
+                        mock_model_info.get_recommended_renderer_name.return_value = (
+                            "qwen3"
+                        )
                         mock_tokenizer.return_value = MagicMock()
                         mock_renderer = MagicMock()
                         mock_renderers.get_renderer.return_value = mock_renderer
@@ -48,14 +53,18 @@ class TestTinkerClientResponseParsing:
         client, mock_renderer = mock_client
 
         # Qwen3 renderer returns this format
-        mock_renderer.parse_response.return_value = [{
-            "content": [
-                {"type": "thinking", "thinking": "Let me reason about this..."},
-                {"type": "text", "text": "The answer is 42."}
-            ]
-        }]
+        mock_renderer.parse_response.return_value = [
+            {
+                "content": [
+                    {"type": "thinking", "thinking": "Let me reason about this..."},
+                    {"type": "text", "text": "The answer is 42."},
+                ]
+            }
+        ]
 
-        result = client._parse_response([1, 2, 3])  # tokens don't matter, renderer is mocked
+        result = client._parse_response(
+            [1, 2, 3]
+        )  # tokens don't matter, renderer is mocked
 
         assert result == "<think>Let me reason about this...</think>The answer is 42."
 
@@ -63,11 +72,9 @@ class TestTinkerClientResponseParsing:
         """Renderer returns structured content with only text part."""
         client, mock_renderer = mock_client
 
-        mock_renderer.parse_response.return_value = [{
-            "content": [
-                {"type": "text", "text": "Just a response without thinking."}
-            ]
-        }]
+        mock_renderer.parse_response.return_value = [
+            {"content": [{"type": "text", "text": "Just a response without thinking."}]}
+        ]
 
         result = client._parse_response([1, 2, 3])
 
@@ -77,9 +84,9 @@ class TestTinkerClientResponseParsing:
         """Renderer returns plain string content (older format)."""
         client, mock_renderer = mock_client
 
-        mock_renderer.parse_response.return_value = [{
-            "content": "Plain string response"
-        }]
+        mock_renderer.parse_response.return_value = [
+            {"content": "Plain string response"}
+        ]
 
         result = client._parse_response([1, 2, 3])
 
@@ -99,11 +106,9 @@ class TestTinkerClientResponseParsing:
         """Unknown dict format falls back to str() representation."""
         client, mock_renderer = mock_client
 
-        mock_renderer.parse_response.return_value = [{
-            "content": [
-                {"unknown_key": "unknown_value"}
-            ]
-        }]
+        mock_renderer.parse_response.return_value = [
+            {"content": [{"unknown_key": "unknown_value"}]}
+        ]
 
         result = client._parse_response([1, 2, 3])
 
@@ -114,13 +119,15 @@ class TestTinkerClientResponseParsing:
         """Content list with mixed types (dict and string)."""
         client, mock_renderer = mock_client
 
-        mock_renderer.parse_response.return_value = [{
-            "content": [
-                {"type": "thinking", "thinking": "Reasoning"},
-                "plain string in list",
-                {"type": "text", "text": "Final answer"}
-            ]
-        }]
+        mock_renderer.parse_response.return_value = [
+            {
+                "content": [
+                    {"type": "thinking", "thinking": "Reasoning"},
+                    "plain string in list",
+                    {"type": "text", "text": "Final answer"},
+                ]
+            }
+        ]
 
         result = client._parse_response([1, 2, 3])
 
@@ -140,11 +147,12 @@ class TestLLMClientMessageBuilding:
                 mock_store.get_model.return_value = {
                     "provider": "openrouter",
                     "model": "qwen/qwen3-30b",
-                    "sysprompt": "You are Aria."
+                    "sysprompt": "You are Aria.",
                 }
                 mock_get_provider.return_value = MagicMock()
 
                 from shaping.modeling.clients import LLMClient
+
                 client = LLMClient("test-model")
                 yield client
 
@@ -163,7 +171,7 @@ class TestLLMClientMessageBuilding:
         """Doesn't add sysprompt if already present."""
         messages = [
             {"role": "system", "content": "Custom sysprompt"},
-            {"role": "user", "content": "Hello"}
+            {"role": "user", "content": "Hello"},
         ]
 
         built = mock_llm_client._build_messages(messages)
@@ -178,11 +186,14 @@ class TestLLMClientMessageBuilding:
                 mock_store.get_model.return_value = {
                     "provider": "openrouter",
                     "model": "qwen/qwen3-30b",
-                    "sysprompt": "Original sysprompt"
+                    "sysprompt": "Original sysprompt",
                 }
 
                 from shaping.modeling.clients import LLMClient
-                client = LLMClient("test-model", sysprompt_override="Override sysprompt")
+
+                client = LLMClient(
+                    "test-model", sysprompt_override="Override sysprompt"
+                )
 
                 messages = [{"role": "user", "content": "Hello"}]
                 built = client._build_messages(messages)
@@ -195,11 +206,12 @@ class TestLLMClientMessageBuilding:
             with patch("shaping.modeling.clients.get_provider"):
                 mock_store.get_model.return_value = {
                     "provider": "openrouter",
-                    "model": "qwen/qwen3-30b"
+                    "model": "qwen/qwen3-30b",
                     # No sysprompt
                 }
 
                 from shaping.modeling.clients import LLMClient
+
                 client = LLMClient("test-model")
 
                 messages = [{"role": "user", "content": "Hello"}]
@@ -306,7 +318,10 @@ class TestConfigResolution:
 
         # Create config with a judge model defined
         config = ISFConfig()
-        config._config["models"]["judge"] = {"provider": "openrouter", "model": "gpt-4o-mini"}
+        config._config["models"]["judge"] = {
+            "provider": "openrouter",
+            "model": "gpt-4o-mini",
+        }
 
         result = config.resolve_model("isf.judge.default")
         assert result == "judge"
@@ -320,7 +335,9 @@ class TestConfigResolution:
         assert renderer == "qwen3"
         assert path is None
 
-        base, renderer, path = resolve_checkpoint("Qwen/Qwen3-30B::qwen3::/path/to/checkpoint")
+        base, renderer, path = resolve_checkpoint(
+            "Qwen/Qwen3-30B::qwen3::/path/to/checkpoint"
+        )
         assert base == "Qwen/Qwen3-30B"
         assert renderer == "qwen3"
         assert path == "/path/to/checkpoint"
@@ -363,8 +380,12 @@ class TestRendererHFTemplateConsistency:
         base_model = "deepseek-ai/DeepSeek-V3.1"
 
         tokenizer = get_tokenizer(base_model)
-        thinking_renderer = renderers.get_renderer(name="deepseekv3_thinking", tokenizer=tokenizer)
-        non_thinking_renderer = renderers.get_renderer(name="deepseekv3", tokenizer=tokenizer)
+        thinking_renderer = renderers.get_renderer(
+            name="deepseekv3_thinking", tokenizer=tokenizer
+        )
+        non_thinking_renderer = renderers.get_renderer(
+            name="deepseekv3", tokenizer=tokenizer
+        )
         hf_tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
 
         return thinking_renderer, non_thinking_renderer, tokenizer, hf_tokenizer
@@ -385,7 +406,10 @@ class TestRendererHFTemplateConsistency:
 
         # Renderer
         from tinker_cookbook import renderers as r
-        renderer_msgs = [r.Message(role=m["role"], content=m["content"]) for m in messages]
+
+        renderer_msgs = [
+            r.Message(role=m["role"], content=m["content"]) for m in messages
+        ]
         prompt = renderer.build_generation_prompt(renderer_msgs)
 
         # Decode renderer output
@@ -418,7 +442,10 @@ class TestRendererHFTemplateConsistency:
 
         # Renderer
         from tinker_cookbook import renderers as r
-        renderer_msgs = [r.Message(role=m["role"], content=m["content"]) for m in messages]
+
+        renderer_msgs = [
+            r.Message(role=m["role"], content=m["content"]) for m in messages
+        ]
         prompt = renderer.build_generation_prompt(renderer_msgs)
 
         all_tokens = []
@@ -433,7 +460,9 @@ class TestRendererHFTemplateConsistency:
 
         Non-thinking mode uses </think> prefix to skip reasoning.
         """
-        thinking_renderer, non_thinking_renderer, tokenizer, hf_tokenizer = deepseek_v3_setup
+        thinking_renderer, non_thinking_renderer, tokenizer, hf_tokenizer = (
+            deepseek_v3_setup
+        )
 
         messages = [
             {"role": "system", "content": "You are helpful."},
@@ -446,7 +475,9 @@ class TestRendererHFTemplateConsistency:
         )
 
         # Non-thinking renderer
-        renderer_msgs = [renderers.Message(role=m["role"], content=m["content"]) for m in messages]
+        renderer_msgs = [
+            renderers.Message(role=m["role"], content=m["content"]) for m in messages
+        ]
         prompt = non_thinking_renderer.build_generation_prompt(renderer_msgs)
 
         all_tokens = []
@@ -469,7 +500,9 @@ class TestRendererHFTemplateConsistency:
 
         This test documents the difference rather than asserting equality.
         """
-        thinking_renderer, non_thinking_renderer, tokenizer, hf_tokenizer = deepseek_v3_setup
+        thinking_renderer, non_thinking_renderer, tokenizer, hf_tokenizer = (
+            deepseek_v3_setup
+        )
 
         messages = [
             {"role": "system", "content": "You are helpful."},
@@ -482,7 +515,9 @@ class TestRendererHFTemplateConsistency:
         )
 
         # Thinking renderer (does NOT add <think> prefix)
-        renderer_msgs = [renderers.Message(role=m["role"], content=m["content"]) for m in messages]
+        renderer_msgs = [
+            renderers.Message(role=m["role"], content=m["content"]) for m in messages
+        ]
         prompt = thinking_renderer.build_generation_prompt(renderer_msgs)
 
         all_tokens = []
@@ -492,8 +527,12 @@ class TestRendererHFTemplateConsistency:
 
         # Document the expected difference
         assert hf_prompt.endswith("<think>"), "HF thinking=True should end with <think>"
-        assert not renderer_prompt.endswith("<think>"), "Renderer should NOT add <think>"
-        assert renderer_prompt.endswith("<｜Assistant｜>"), "Renderer ends with Assistant token"
+        assert not renderer_prompt.endswith("<think>"), (
+            "Renderer should NOT add <think>"
+        )
+        assert renderer_prompt.endswith("<｜Assistant｜>"), (
+            "Renderer ends with Assistant token"
+        )
 
         # The difference is exactly the <think> suffix
         assert hf_prompt == renderer_prompt + "<think>", (
@@ -508,20 +547,27 @@ class TestRendererHFTemplateConsistency:
         When strip_thinking_from_history=True (default), thinking blocks
         should be removed from historical assistant messages.
         """
-        thinking_renderer, non_thinking_renderer, tokenizer, hf_tokenizer = deepseek_v3_setup
+        thinking_renderer, non_thinking_renderer, tokenizer, hf_tokenizer = (
+            deepseek_v3_setup
+        )
 
         # Conversation with thinking in history
         messages = [
             {"role": "user", "content": "What is 2+2?"},
-            {"role": "assistant", "content": [
-                {"type": "thinking", "thinking": "Let me calculate..."},
-                {"type": "text", "text": "4"}
-            ]},
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "thinking", "thinking": "Let me calculate..."},
+                    {"type": "text", "text": "4"},
+                ],
+            },
             {"role": "user", "content": "And 3+3?"},
         ]
 
         # Build prompt - thinking should be stripped from historical message
-        renderer_msgs = [renderers.Message(role=m["role"], content=m["content"]) for m in messages]
+        renderer_msgs = [
+            renderers.Message(role=m["role"], content=m["content"]) for m in messages
+        ]
         prompt = thinking_renderer.build_generation_prompt(renderer_msgs)
 
         all_tokens = []
@@ -531,8 +577,7 @@ class TestRendererHFTemplateConsistency:
 
         # Historical thinking should be stripped
         assert "Let me calculate" not in rendered, (
-            f"Historical thinking should be stripped!\n"
-            f"Rendered: {repr(rendered)}"
+            f"Historical thinking should be stripped!\nRendered: {repr(rendered)}"
         )
         # But the text response should remain
         assert "4" in rendered

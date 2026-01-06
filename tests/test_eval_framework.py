@@ -263,11 +263,13 @@ class TestEvalBaseClass:
             judge = MCParser()
 
         eval_def = TestEval()
-        prompt = eval_def.format_prompt({
-            "question": "What is 2+2?",
-            "A": "3",
-            "B": "4",
-        })
+        prompt = eval_def.format_prompt(
+            {
+                "question": "What is 2+2?",
+                "A": "3",
+                "B": "4",
+            }
+        )
 
         assert prompt == "Q: What is 2+2?\nA) 3\nB) 4"
 
@@ -462,7 +464,9 @@ class TestDataSourceLoading:
             judge = MCParser()
 
         eval_def = TestEval()
-        with pytest.raises(ValueError, match="must define either hf_dataset or local_path"):
+        with pytest.raises(
+            ValueError, match="must define either hf_dataset or local_path"
+        ):
             eval_def.load_samples()
 
     def test_local_path_file_not_found(self):
@@ -491,8 +495,7 @@ class TestLLMJudge:
     def test_build_judge_prompt_with_prompt(self, judge):
         """Judge prompt should include both prompt and response."""
         result = judge._build_judge_prompt(
-            prompt="What is 2+2?",
-            response="The answer is 4."
+            prompt="What is 2+2?", response="The answer is 4."
         )
         assert "What is 2+2?" in result
         assert "The answer is 4." in result
@@ -507,8 +510,7 @@ class TestLLMJudge:
             max_score=5,
         )
         result = judge._build_judge_prompt(
-            prompt="Some prompt",
-            response="Some response"
+            prompt="Some prompt", response="Some response"
         )
         assert "Some prompt" not in result
         assert "Some response" in result
@@ -533,12 +535,14 @@ class TestLLMJudge:
 
         # Mock client that returns valid XML
         mock_client = MagicMock()
-        mock_client.query_async = AsyncMock(return_value="""
+        mock_client.query_async = AsyncMock(
+            return_value="""
 <evaluation>
 <analysis>Good response, clear and accurate.</analysis>
 <score>4</score>
 </evaluation>
-""")
+"""
+        )
         judge._client = mock_client
 
         async def run():
@@ -616,6 +620,7 @@ class TestHuggingFaceDataLoading:
 
         with patch.dict("sys.modules", {"datasets": MagicMock()}):
             import sys
+
             sys.modules["datasets"].load_dataset = MagicMock(return_value=mock_dataset)
             samples = eval_def.load_samples()
 
@@ -642,6 +647,7 @@ class TestHuggingFaceDataLoading:
 
         with patch.dict("sys.modules", {"datasets": MagicMock()}):
             import sys
+
             sys.modules["datasets"].load_dataset = MagicMock(return_value=mock_dataset)
             samples = eval_def.load_samples()
 
@@ -664,6 +670,7 @@ class TestHuggingFaceDataLoading:
 
         with patch.dict("sys.modules", {"datasets": MagicMock()}):
             import sys
+
             sys.modules["datasets"].load_dataset = MagicMock(return_value=mock_dataset)
             samples = eval_def.load_samples()
 

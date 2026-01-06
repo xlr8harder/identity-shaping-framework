@@ -101,8 +101,16 @@ def parse_assessment_xml(text: str, score_field: str = "score") -> ParsedAssessm
     result.improvement = fields.get("improvement", "")
 
     # Store any remaining fields in extra
-    known_fields = {"raw", score_field, "aria_shapedness", "analysis", "impression",
-                    "needs_review", "errors", "improvement"}
+    known_fields = {
+        "raw",
+        score_field,
+        "aria_shapedness",
+        "analysis",
+        "impression",
+        "needs_review",
+        "errors",
+        "improvement",
+    }
     result.extra = {k: v for k, v in fields.items() if k not in known_fields}
 
     return result

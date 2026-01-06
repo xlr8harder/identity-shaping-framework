@@ -1,6 +1,5 @@
 """Tests for shaping.chat module."""
 
-import pytest
 from shaping.chat import format_think_tags, strip_think_formatting
 
 
@@ -39,20 +38,20 @@ class TestStripThinkFormatting:
 
     def test_restores_raw_tags(self):
         """Converts HTML back to <think>...</think>."""
-        html = '''<details class="think-block">
+        html = """<details class="think-block">
 <summary>Thinking...</summary>
 <div class="think-content">my reasoning</div>
-</details>my response'''
+</details>my response"""
         result = strip_think_formatting(html)
         assert "<think>my reasoning</think>" in result
         assert "my response" in result
 
     def test_unescapes_html_entities(self):
         """HTML entities are unescaped when restoring."""
-        html = '''<details class="think-block">
+        html = """<details class="think-block">
 <summary>Thinking...</summary>
 <div class="think-content">&lt;code&gt; &amp; stuff</div>
-</details>done'''
+</details>done"""
         result = strip_think_formatting(html)
         assert "<code>" in result
         assert "&" in result

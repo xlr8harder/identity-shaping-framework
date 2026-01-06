@@ -8,6 +8,7 @@ Handles isf.yaml loading and model name resolution:
 Also handles checkpoint resolution for tinker models:
 - e027-final → (base_model, renderer, checkpoint_path)
 """
+
 import json
 import os
 from pathlib import Path
@@ -188,7 +189,9 @@ def resolve_checkpoint(
                     if cp["name"] == checkpoint_name:
                         return model_name, renderer_name, cp["sampler_path"]
 
-            raise ValueError(f"Checkpoint '{checkpoint_name}' not found in {checkpoints_file}")
+            raise ValueError(
+                f"Checkpoint '{checkpoint_name}' not found in {checkpoints_file}"
+            )
         else:
             raise ValueError(f"Experiment logs not found at {log_dir}")
 
@@ -205,6 +208,7 @@ def resolve_checkpoint(
     # Base model name - need tinker_cookbook for recommended renderer
     try:
         from tinker_cookbook import model_info
+
         renderer = model_info.get_recommended_renderer_name(spec)
         return spec, renderer, None
     except ImportError:

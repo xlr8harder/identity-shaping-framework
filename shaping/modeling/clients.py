@@ -14,7 +14,6 @@ from llm_client import get_provider
 from llm_client.retry import retry_request
 from mq import store as mq_store
 
-from ..data.think_tags import strip_thinking
 from .defaults import DEFAULT_TEMPERATURE, DEFAULT_MAX_TOKENS
 
 
@@ -153,7 +152,9 @@ class LLMClient:
                         for p in content:
                             if isinstance(p, dict):
                                 if p.get("type") == "thinking":
-                                    parts.append(f"<think>{p.get('thinking', '')}</think>")
+                                    parts.append(
+                                        f"<think>{p.get('thinking', '')}</think>"
+                                    )
                                 elif p.get("type") == "text":
                                     parts.append(p.get("text", ""))
                                 elif "text" in p:
@@ -184,7 +185,9 @@ class LLMClient:
             if attempt < self.max_retries - 1:
                 time.sleep(1 * (attempt + 1))
 
-        raise RuntimeError(f"Query failed after {self.max_retries} attempts: {last_error}")
+        raise RuntimeError(
+            f"Query failed after {self.max_retries} attempts: {last_error}"
+        )
 
     async def query_async(self, messages: list[dict]) -> str:
         """Async version of query.

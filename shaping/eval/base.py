@@ -159,10 +159,10 @@ class Eval(ABC):
     name: str
 
     # Data source (one of these required)
-    hf_dataset: str | None = None      # e.g., "fingertap/GPQA-Diamond"
-    hf_subset: str | None = None       # e.g., "gpqa_diamond" for multi-config datasets
-    hf_split: str = "train"            # Default split to load
-    local_path: str | None = None      # Relative to project root
+    hf_dataset: str | None = None  # e.g., "fingertap/GPQA-Diamond"
+    hf_subset: str | None = None  # e.g., "gpqa_diamond" for multi-config datasets
+    hf_split: str = "train"  # Default split to load
+    local_path: str | None = None  # Relative to project root
 
     # Field mapping for non-standard datasets
     # Maps: {expected_name: dataset_field_name}
@@ -180,8 +180,8 @@ class Eval(ABC):
     metrics: MetricsAggregator | None = None
 
     # Generation parameters
-    max_tokens: int | None = None          # Max tokens for model response
-    temperature: float | None = None       # Sampling temperature
+    max_tokens: int | None = None  # Max tokens for model response
+    temperature: float | None = None  # Sampling temperature
 
     def format_prompt(self, sample: dict) -> str:
         """Format a sample into a prompt string.

@@ -32,5 +32,10 @@ Quick start with backends (for dispatcher):
 
 __version__ = "0.1.0"
 
-# Convenient imports
-from .config import resolve_model, resolve_checkpoint, ISFConfig, get_config
+# Convenient imports - explicit re-exports
+from .config import (
+    resolve_model as resolve_model,
+    resolve_checkpoint as resolve_checkpoint,
+    ISFConfig as ISFConfig,
+    get_config as get_config,
+)

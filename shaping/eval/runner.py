@@ -28,13 +28,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Any
 
-from .base import Eval, EvalResult, EvalMetrics
+from .base import Eval, EvalMetrics
 from .judges import LLMJudge, MCParser, AccuracyMetrics, ScoredMetrics
 
 
 @dataclass
 class JudgmentRecord:
     """Record of a single judgment call."""
+
     judge: str
     raw: str
     score: float | int | None
@@ -51,15 +52,16 @@ class GenerationRecord:
     - Eventual DB storage at aggregate level
     - Unified schema across eval types
     """
+
     # Metadata (for foolproof identification)
-    _eval: str = ""              # Eval name (e.g., "gpqa", "wildchat")
-    _version: int = 1            # Schema version
+    _eval: str = ""  # Eval name (e.g., "gpqa", "wildchat")
+    _version: int = 1  # Schema version
     _score_type: str = "binary"  # "binary" or "scaled:N"
-    model: str = ""              # Model being evaluated
+    model: str = ""  # Model being evaluated
 
     # Sample identity
     sample_id: str = ""
-    run: int = 1                 # Which generation (1-indexed)
+    run: int = 1  # Which generation (1-indexed)
 
     # Core result (always present)
     final_score: float | None = None  # 0-1 for binary, 1-N for scaled
@@ -69,8 +71,8 @@ class GenerationRecord:
     response: str = ""
 
     # Eval-specific (nullable)
-    gold: Any = None             # Expected answer
-    extracted: Any = None        # Extracted answer (for MC/parsing evals)
+    gold: Any = None  # Expected answer
+    extracted: Any = None  # Extracted answer (for MC/parsing evals)
 
     # Judgments (for LLM-judged or multiple samples)
     judgments: list[JudgmentRecord] = field(default_factory=list)
@@ -170,9 +172,13 @@ class EvalRunner:
 
         # Initialize model client
         # Use eval's settings, with run() params as override
-        model_temp = temperature if temperature is not None else self.eval_def.temperature
+        model_temp = (
+            temperature if temperature is not None else self.eval_def.temperature
+        )
         model_max_tokens = self.eval_def.max_tokens
-        model_client = await self._create_model_client(model, model_temp, model_max_tokens)
+        model_client = await self._create_model_client(
+            model, model_temp, model_max_tokens
+        )
 
         # Initialize judge client if needed
         judge_name = None
@@ -191,7 +197,9 @@ class EvalRunner:
             print(f"Model: {model}")
             print(f"Samples: {len(samples)}")
             if runs_per_sample > 1:
-                print(f"Runs per sample: {runs_per_sample} ({total_generations} total generations)")
+                print(
+                    f"Runs per sample: {runs_per_sample} ({total_generations} total generations)"
+                )
             if judges_per_run > 1:
                 print(f"Judge calls per run: {judges_per_run}")
             if judge_name:
@@ -237,7 +245,7 @@ class EvalRunner:
                 },
             )
             if not quiet:
-                print(f"\nResults saved to:")
+                print("\nResults saved to:")
                 print(f"  Detail: {output_files['detail']}")
                 print(f"  Summary: {output_files['summary']}")
 
@@ -304,7 +312,9 @@ class EvalRunner:
         scored_count = 0
         lock = asyncio.Lock()
 
-        async def run_one(work_idx: int, sample_idx: int, sample: dict, run_idx: int) -> None:
+        async def run_one(
+            work_idx: int, sample_idx: int, sample: dict, run_idx: int
+        ) -> None:
             nonlocal completed, total_score, scored_count
 
             async with semaphore:
@@ -329,7 +339,9 @@ class EvalRunner:
                     avg = total_score / scored_count if scored_count > 0 else 0
 
                     if not quiet:
-                        print(f"  Progress: {completed}/{len(work_items)} (avg: {avg:.2f})")
+                        print(
+                            f"  Progress: {completed}/{len(work_items)} (avg: {avg:.2f})"
+                        )
 
                     if progress_callback:
                         progress_callback(completed, len(work_items), avg)
@@ -379,9 +391,9 @@ class EvalRunner:
             record.prompt = prompt
 
             # Get model response
-            response = await model_client.query_async([
-                {"role": "user", "content": prompt}
-            ])
+            response = await model_client.query_async(
+                [{"role": "user", "content": prompt}]
+            )
             record.response = response
 
             # Judge the response (possibly multiple times)
@@ -397,12 +409,18 @@ class EvalRunner:
 
                 judgment = JudgmentRecord(
                     judge=judge_name or "fixed_parser",
-                    raw=result.metadata.get("judge_response", "") if result.metadata else "",
+                    raw=result.metadata.get("judge_response", "")
+                    if result.metadata
+                    else "",
                     score=result.score,
                     parsed={
                         "analysis": result.analysis,
-                        "needs_review": result.metadata.get("needs_review") if result.metadata else None,
-                        "errors": result.metadata.get("errors") if result.metadata else None,
+                        "needs_review": result.metadata.get("needs_review")
+                        if result.metadata
+                        else None,
+                        "errors": result.metadata.get("errors")
+                        if result.metadata
+                        else None,
                     },
                     error=result.error,
                 )
@@ -448,11 +466,15 @@ class EvalRunner:
             )
 
         # For scored evals (LLMJudge)
-        scores = [r.final_score for r in records if r.error is None and r.final_score is not None]
+        scores = [
+            r.final_score
+            for r in records
+            if r.error is None and r.final_score is not None
+        ]
         mean_score = sum(scores) / len(scores) if scores else 0.0
 
         # Build distribution (round to int for binning)
-        max_score = getattr(self.eval_def.judge, 'max_score', 5)
+        max_score = getattr(self.eval_def.judge, "max_score", 5)
         distribution = {i: 0 for i in range(1, max_score + 1)}
         for s in scores:
             rounded = round(s)

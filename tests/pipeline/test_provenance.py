@@ -535,16 +535,24 @@ class TestTrackedTaskEdgeCases:
         class MixedTask(TrackedTask):
             def process_record(self):
                 # Sequential
-                r1 = yield model_request([{"role": "user", "content": "1"}], step_id="first")
+                r1 = yield model_request(
+                    [{"role": "user", "content": "1"}], step_id="first"
+                )
 
                 # Parallel
                 responses = yield [
-                    model_request([{"role": "user", "content": "2a"}], step_id="parallel_a"),
-                    model_request([{"role": "user", "content": "2b"}], step_id="parallel_b"),
+                    model_request(
+                        [{"role": "user", "content": "2a"}], step_id="parallel_a"
+                    ),
+                    model_request(
+                        [{"role": "user", "content": "2b"}], step_id="parallel_b"
+                    ),
                 ]
 
                 # Sequential again
-                r2 = yield model_request([{"role": "user", "content": "3"}], step_id="last")
+                r2 = yield model_request(
+                    [{"role": "user", "content": "3"}], step_id="last"
+                )
 
                 return TrainingSample(id="mixed", messages=[])
 
@@ -561,7 +569,9 @@ class TestTrackedTaskEdgeCases:
         assert len(reqs) == 2
 
         # Last sequential
-        req_last = gen.send([make_response(reqs[0], "r2a"), make_response(reqs[1], "r2b")])
+        req_last = gen.send(
+            [make_response(reqs[0], "r2a"), make_response(reqs[1], "r2b")]
+        )
         assert req_last.content["_step_id"] == "last"
 
         with pytest.raises(StopIteration) as exc_info:
@@ -569,7 +579,12 @@ class TestTrackedTaskEdgeCases:
 
         steps = exc_info.value.value["steps"]
         assert len(steps) == 4
-        assert [s["step_id"] for s in steps] == ["first", "parallel_a", "parallel_b", "last"]
+        assert [s["step_id"] for s in steps] == [
+            "first",
+            "parallel_a",
+            "parallel_b",
+            "last",
+        ]
         assert [s["step_index"] for s in steps] == [0, 1, 2, 3]
 
 

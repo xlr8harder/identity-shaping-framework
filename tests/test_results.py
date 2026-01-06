@@ -1,9 +1,7 @@
 """Tests for shaping.results module."""
 
 import json
-import tempfile
 from datetime import datetime
-from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -27,6 +25,7 @@ from shaping.training.config import TrainConfig
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def base_model():
@@ -174,6 +173,7 @@ def temp_store(tmp_path):
 # Model Spec Tests
 # =============================================================================
 
+
 class TestModelSpecs:
     """Tests for model specification types."""
 
@@ -217,6 +217,7 @@ class TestModelSpecDiscriminator:
     def test_parse_base_model(self):
         """Parses base model from dict."""
         from pydantic import TypeAdapter
+
         adapter = TypeAdapter(ModelSpec)
 
         data = {
@@ -231,6 +232,7 @@ class TestModelSpecDiscriminator:
     def test_parse_trained_model(self):
         """Parses trained model from dict."""
         from pydantic import TypeAdapter
+
         adapter = TypeAdapter(ModelSpec)
 
         data = {
@@ -258,6 +260,7 @@ class TestModelSpecDiscriminator:
     def test_invalid_mode_raises(self):
         """Invalid mode raises validation error."""
         from pydantic import TypeAdapter
+
         adapter = TypeAdapter(ModelSpec)
 
         data = {
@@ -272,6 +275,7 @@ class TestModelSpecDiscriminator:
 # =============================================================================
 # Eval Result Tests
 # =============================================================================
+
 
 class TestEvalResult:
     """Tests for EvalResult model."""
@@ -314,7 +318,9 @@ class TestEvalResult:
         """Version field defaults to 1."""
         assert full_eval_result.version == 1
 
-    def test_partial_eval_flag(self, trained_model, partial_eval_config, sampling_config):
+    def test_partial_eval_flag(
+        self, trained_model, partial_eval_config, sampling_config
+    ):
         """Partial evals are flagged correctly."""
         result = EvalResult(
             id="test-partial",
@@ -363,6 +369,7 @@ class TestResults:
 # Results Store Tests
 # =============================================================================
 
+
 class TestResultsStore:
     """Tests for ResultsStore."""
 
@@ -383,7 +390,9 @@ class TestResultsStore:
         assert len(results) == 1
         assert results[0].id == full_eval_result.id
 
-    def test_list_filters_by_model(self, temp_store, full_eval_result, base_model, eval_config, sampling_config):
+    def test_list_filters_by_model(
+        self, temp_store, full_eval_result, base_model, eval_config, sampling_config
+    ):
         """Lists can filter by model alias."""
         # Add the trained model result
         temp_store.add(full_eval_result)
@@ -408,7 +417,9 @@ class TestResultsStore:
         assert len(base_results) == 1
         assert base_results[0].id == "base-result"
 
-    def test_list_filters_by_eval_name(self, temp_store, full_eval_result, trained_model, sampling_config):
+    def test_list_filters_by_eval_name(
+        self, temp_store, full_eval_result, trained_model, sampling_config
+    ):
         """Lists can filter by eval name."""
         temp_store.add(full_eval_result)
 
@@ -437,7 +448,9 @@ class TestResultsStore:
         assert len(wildchat) == 1
         assert wildchat[0].id == "other-result"
 
-    def test_list_excludes_partial_by_default(self, temp_store, trained_model, sampling_config):
+    def test_list_excludes_partial_by_default(
+        self, temp_store, trained_model, sampling_config
+    ):
         """Partial evals are excluded by default."""
         # Add complete result
         complete = EvalResult(
@@ -497,13 +510,21 @@ class TestResultsStore:
                 training_run="E037",
                 training_data="data1",
                 training_config=TrainConfig(
-                    base_model="qwen3", data="data1.jsonl", name="E037",
-                    renderer="qwen3", learning_rate=1e-5, shuffle_seed=42, save_every=100,
+                    base_model="qwen3",
+                    data="data1.jsonl",
+                    name="E037",
+                    renderer="qwen3",
+                    learning_rate=1e-5,
+                    shuffle_seed=42,
+                    save_every=100,
                 ),
             ),
             eval=EvalConfig(
-                name="test", dataset_sha="abc",
-                dataset_size=100, n_samples=100, complete=True,
+                name="test",
+                dataset_sha="abc",
+                dataset_size=100,
+                n_samples=100,
+                complete=True,
             ),
             model_sampling=sampling_config,
             results=Results(score=0.72),
@@ -523,13 +544,21 @@ class TestResultsStore:
                 training_run="E038",
                 training_data="data2",
                 training_config=TrainConfig(
-                    base_model="qwen3", data="data2.jsonl", name="E038",
-                    renderer="qwen3", learning_rate=1e-5, shuffle_seed=42, save_every=100,
+                    base_model="qwen3",
+                    data="data2.jsonl",
+                    name="E038",
+                    renderer="qwen3",
+                    learning_rate=1e-5,
+                    shuffle_seed=42,
+                    save_every=100,
                 ),
             ),
             eval=EvalConfig(
-                name="test", dataset_sha="abc",
-                dataset_size=100, n_samples=100, complete=True,
+                name="test",
+                dataset_sha="abc",
+                dataset_size=100,
+                n_samples=100,
+                complete=True,
             ),
             model_sampling=sampling_config,
             results=Results(score=0.75),
@@ -565,8 +594,11 @@ class TestResultsStore:
             timestamp=datetime.now(),
             model=BaseModelSpec(alias="test", provider="test", model_id="test"),
             eval=EvalConfig(
-                name="test", dataset_sha="abc",
-                dataset_size=10, n_samples=10, complete=True,
+                name="test",
+                dataset_sha="abc",
+                dataset_size=10,
+                n_samples=10,
+                complete=True,
             ),
             model_sampling=SamplingConfig(temperature=0.0, max_tokens=100),
             results=Results(score=1.0),
@@ -613,6 +645,7 @@ class TestResultsStoreLenientRead:
 # =============================================================================
 # Compare Helper Tests
 # =============================================================================
+
 
 class TestShortId:
     """Tests for short ID functions."""
@@ -678,7 +711,9 @@ class TestShortId:
         assert len(matches) == 1
         assert matches[0].id == full_eval_result.id
 
-    def test_resolve_ambiguous_short_id(self, temp_store, trained_model, eval_config, sampling_config):
+    def test_resolve_ambiguous_short_id(
+        self, temp_store, trained_model, eval_config, sampling_config
+    ):
         """Multiple results with same short ID returns all matches."""
         from shaping.cli import _resolve_short_id, _short_id
 
@@ -781,22 +816,40 @@ class TestTrainingDiffs:
         from shaping.cli import _get_training_diffs
 
         model1 = TrainedModelSpec(
-            alias="e037", provider="tinker", base_model="qwen3",
-            renderer="qwen3", checkpoint="ckpt1", training_run="E037",
+            alias="e037",
+            provider="tinker",
+            base_model="qwen3",
+            renderer="qwen3",
+            checkpoint="ckpt1",
+            training_run="E037",
             training_data="data1",
             training_config=TrainConfig(
-                base_model="qwen3", data="data1.jsonl", name="E037",
-                renderer="qwen3", learning_rate=1e-5, shuffle_seed=42, save_every=100,
+                base_model="qwen3",
+                data="data1.jsonl",
+                name="E037",
+                renderer="qwen3",
+                learning_rate=1e-5,
+                shuffle_seed=42,
+                save_every=100,
                 grad_clip=0.5,
             ),
         )
         model2 = TrainedModelSpec(
-            alias="e038", provider="tinker", base_model="qwen3",
-            renderer="qwen3", checkpoint="ckpt2", training_run="E038",
+            alias="e038",
+            provider="tinker",
+            base_model="qwen3",
+            renderer="qwen3",
+            checkpoint="ckpt2",
+            training_run="E038",
             training_data="data2",
             training_config=TrainConfig(
-                base_model="qwen3", data="data2.jsonl", name="E038",
-                renderer="qwen3", learning_rate=2e-5, shuffle_seed=42, save_every=100,
+                base_model="qwen3",
+                data="data2.jsonl",
+                name="E038",
+                renderer="qwen3",
+                learning_rate=2e-5,
+                shuffle_seed=42,
+                save_every=100,
                 grad_clip=1.0,
             ),
         )

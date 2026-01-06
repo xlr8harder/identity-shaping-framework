@@ -8,7 +8,7 @@ Provides:
 import re
 from dataclasses import dataclass
 
-from .base import Judge, EvalResult
+from .base import Judge, EvalResult, MetricsAggregator, EvalMetrics
 from .parsers import parse_assessment_xml
 
 
@@ -197,9 +197,9 @@ Provide your evaluation in this XML format:
 
         try:
             # Query judge model
-            judge_response = await self._client.query_async([
-                {"role": "user", "content": judge_prompt}
-            ])
+            judge_response = await self._client.query_async(
+                [{"role": "user", "content": judge_prompt}]
+            )
 
             # Parse XML response
             parsed = parse_assessment_xml(judge_response, score_field=self.score_field)
@@ -232,8 +232,6 @@ Provide your evaluation in this XML format:
 # =============================================================================
 # Metrics Aggregators
 # =============================================================================
-
-from .base import MetricsAggregator, EvalMetrics
 
 
 @dataclass

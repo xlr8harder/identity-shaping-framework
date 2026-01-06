@@ -6,7 +6,6 @@ training and inference formatters.
 
 import pytest
 from shaping.modeling.model_formats import (
-    ModelFormat,
     ThinkingMode,
     get_model_format,
     get_training_renderer_name,
@@ -60,13 +59,21 @@ class TestDeepSeekV3Formats:
 
     def test_training_renderer_name(self):
         """Convenience function returns correct training renderer."""
-        assert get_training_renderer_name("deepseek-v3", thinking=True) == "deepseekv3_thinking"
+        assert (
+            get_training_renderer_name("deepseek-v3", thinking=True)
+            == "deepseekv3_thinking"
+        )
         assert get_training_renderer_name("deepseek-v3", thinking=False) == "deepseekv3"
 
     def test_inference_renderer_name(self):
         """Convenience function returns correct inference renderer."""
-        assert get_inference_renderer_name("deepseek-v3", thinking=True) == "deepseekv3_thinking"
-        assert get_inference_renderer_name("deepseek-v3", thinking=False) == "deepseekv3"
+        assert (
+            get_inference_renderer_name("deepseek-v3", thinking=True)
+            == "deepseekv3_thinking"
+        )
+        assert (
+            get_inference_renderer_name("deepseek-v3", thinking=False) == "deepseekv3"
+        )
 
 
 class TestQwen3Formats:
@@ -88,7 +95,8 @@ class TestRendererInstantiation:
     @pytest.fixture
     def tokenizer(self):
         from tinker_cookbook.tokenizer_utils import get_tokenizer
-        return get_tokenizer('deepseek-ai/DeepSeek-V3.1')
+
+        return get_tokenizer("deepseek-ai/DeepSeek-V3.1")
 
     def test_get_training_renderer(self, tokenizer):
         """Can instantiate training renderer from format."""
@@ -97,7 +105,9 @@ class TestRendererInstantiation:
 
         assert renderer is not None
         # Verify it's the thinking renderer
-        assert "thinking" in type(renderer).__name__.lower() or hasattr(renderer, 'strip_thinking_from_history')
+        assert "thinking" in type(renderer).__name__.lower() or hasattr(
+            renderer, "strip_thinking_from_history"
+        )
 
     def test_get_inference_renderer(self, tokenizer):
         """Can instantiate inference renderer from format."""
@@ -113,9 +123,9 @@ class TestHFInferencePrompt:
     @pytest.fixture
     def hf_tokenizer(self):
         from transformers import AutoTokenizer
+
         return AutoTokenizer.from_pretrained(
-            'deepseek-ai/DeepSeek-V3.1',
-            trust_remote_code=True
+            "deepseek-ai/DeepSeek-V3.1", trust_remote_code=True
         )
 
     def test_build_hf_inference_prompt_thinking(self, hf_tokenizer):
@@ -123,27 +133,27 @@ class TestHFInferencePrompt:
         fmt = get_model_format("deepseek-v3", thinking=True)
 
         messages = [
-            {'role': 'user', 'content': 'Hello'},
+            {"role": "user", "content": "Hello"},
         ]
 
         prompt = fmt.build_hf_inference_prompt(messages, hf_tokenizer)
 
         # Should end with <think> for thinking mode
-        assert prompt.endswith('<think>')
-        assert '<｜Assistant｜><think>' in prompt
+        assert prompt.endswith("<think>")
+        assert "<｜Assistant｜><think>" in prompt
 
     def test_build_hf_inference_prompt_non_thinking(self, hf_tokenizer):
         """Can build HF inference prompt for non-thinking mode."""
         fmt = get_model_format("deepseek-v3", thinking=False)
 
         messages = [
-            {'role': 'user', 'content': 'Hello'},
+            {"role": "user", "content": "Hello"},
         ]
 
         prompt = fmt.build_hf_inference_prompt(messages, hf_tokenizer)
 
         # Should end with </think> to skip reasoning
-        assert prompt.endswith('</think>')
+        assert prompt.endswith("</think>")
 
     def test_hf_prompt_raises_for_non_hf_model(self):
         """Raises error if trying to use HF template for non-HF model."""

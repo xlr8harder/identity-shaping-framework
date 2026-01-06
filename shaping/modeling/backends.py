@@ -68,9 +68,7 @@ class LLMClientBackend(BackendManager):
             # Format for Response.get_text() compatibility
             # Use full_response so pipeline captures reasoning traces
             content = {
-                "choices": [{
-                    "message": {"content": full_response}
-                }],
+                "choices": [{"message": {"content": full_response}}],
                 "_display_response": display_response,
             }
             return Response(request, content=content, model_name=self.model_id)
@@ -139,6 +137,7 @@ class TinkerBackend(BackendManager):
             TinkerBackend configured for that checkpoint
         """
         from ..config import resolve_checkpoint
+
         base_model, renderer_name, model_path = resolve_checkpoint(spec)
         return cls(
             base_model=base_model,
@@ -174,9 +173,7 @@ class TinkerBackend(BackendManager):
             # Format for Response.get_text() compatibility
             # Use full_response so pipeline captures reasoning traces
             content = {
-                "choices": [{
-                    "message": {"content": full_response}
-                }],
+                "choices": [{"message": {"content": full_response}}],
                 "_display_response": display_response,
             }
             return Response(request, content=content, model_name=self.base_model)
@@ -237,7 +234,9 @@ class RegistryBackend(BackendManager):
             # Tinker models need base_model and optionally model_path/renderer
             base_model = model_info_data.get("model")
             if not base_model:
-                raise ValueError(f"Tinker model '{shortname}' missing 'model' (base model name)")
+                raise ValueError(
+                    f"Tinker model '{shortname}' missing 'model' (base model name)"
+                )
             backend = TinkerBackend(
                 base_model=base_model,
                 model_path=model_info_data.get("model_path"),

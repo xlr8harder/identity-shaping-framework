@@ -19,14 +19,16 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 @dataclass
 class IdentityDoc:
     """An identity document available to templates."""
-    name: str          # filename without extension (e.g., "IDENTITY")
-    path: Path         # full path
-    content: str       # file contents
+
+    name: str  # filename without extension (e.g., "IDENTITY")
+    path: Path  # full path
+    content: str  # file contents
 
 
 @dataclass
 class PromptVariant:
     """Configuration for a prompt variant (e.g., full, medium)."""
+
     name: str
     template: str
     context: dict = field(default_factory=dict)
@@ -35,6 +37,7 @@ class PromptVariant:
 @dataclass
 class ModelConfig:
     """Configuration for a plain model."""
+
     name: str
     provider: str
     model: str
@@ -45,6 +48,7 @@ class ModelConfig:
 @dataclass
 class PromptsConfig:
     """Configuration for prompt building."""
+
     project_dir: Path
     project_name: str
     identity_dir: Path
@@ -96,13 +100,15 @@ class PromptsConfig:
                 if sysprompt_path.exists():
                     sysprompt = sysprompt_path.read_text()
 
-            plain_models.append(ModelConfig(
-                name=name,
-                provider=model_cfg.get("provider", "openrouter"),
-                model=model_cfg.get("model", ""),
-                temperature=model_cfg.get("temperature", 0.7),
-                sysprompt=sysprompt,
-            ))
+            plain_models.append(
+                ModelConfig(
+                    name=name,
+                    provider=model_cfg.get("provider", "openrouter"),
+                    model=model_cfg.get("model", ""),
+                    temperature=model_cfg.get("temperature", 0.7),
+                    sysprompt=sysprompt,
+                )
+            )
 
         # Prompts config (with defaults)
         prompts_config = config.get("prompts", {})
@@ -115,18 +121,21 @@ class PromptsConfig:
         templates_dir = project_dir / templates_dir_str
 
         # Versions dir
-        versions_dir = project_dir / prompts_config.get("versions_dir", "identity/versions")
+        versions_dir = project_dir / prompts_config.get(
+            "versions_dir", "identity/versions"
+        )
 
         # Registry path
-        registry_path = project_dir / prompts_config.get("registry_path", "config/registry.json")
+        registry_path = project_dir / prompts_config.get(
+            "registry_path", "config/registry.json"
+        )
 
         # Variants to build - can be list or dict format
         variants_raw = identity_config.get("variants", ["full"])
         if isinstance(variants_raw, list):
             # Simple list format: ["full", "medium"]
             variants = [
-                PromptVariant(name=v, template=f"{v}.txt.j2")
-                for v in variants_raw
+                PromptVariant(name=v, template=f"{v}.txt.j2") for v in variants_raw
             ]
         else:
             # Dict format with template overrides
@@ -140,7 +149,9 @@ class PromptsConfig:
             ]
 
         # Project name
-        project_name = config.get("project", {}).get("name", model_prefix.replace("-", " ").title())
+        project_name = config.get("project", {}).get(
+            "name", model_prefix.replace("-", " ").title()
+        )
 
         return cls(
             project_dir=project_dir,
@@ -163,11 +174,13 @@ def load_identity_docs(identity_dir: Path) -> list[IdentityDoc]:
     """Load all markdown files from identity directory."""
     docs = []
     for path in sorted(identity_dir.glob("*.md")):
-        docs.append(IdentityDoc(
-            name=path.stem,
-            path=path,
-            content=path.read_text(),
-        ))
+        docs.append(
+            IdentityDoc(
+                name=path.stem,
+                path=path,
+                content=path.read_text(),
+            )
+        )
     return docs
 
 
@@ -262,21 +275,25 @@ def discover_checkpoints(project_dir: Path) -> list[dict[str, Any]]:
         if tinker_config_file.exists():
             with open(tinker_config_file) as f:
                 tinker_config = json.load(f)
-            renderer = tinker_config.get("dataset_builder", {}).get(
-                "common_config", {}
-            ).get("renderer_name")
+            renderer = (
+                tinker_config.get("dataset_builder", {})
+                .get("common_config", {})
+                .get("renderer_name")
+            )
 
         # Load checkpoints
         with open(checkpoints_file) as f:
             for line in f:
                 cp = json.loads(line)
                 checkpoint_name = f"{exp_dir.name.lower()}-{cp['name']}"
-                checkpoints.append({
-                    "name": checkpoint_name,
-                    "base_model": base_model,
-                    "renderer": renderer,
-                    "checkpoint_path": cp["sampler_path"],
-                })
+                checkpoints.append(
+                    {
+                        "name": checkpoint_name,
+                        "base_model": base_model,
+                        "renderer": renderer,
+                        "checkpoint_path": cp["sampler_path"],
+                    }
+                )
 
     return checkpoints
 
@@ -433,12 +450,14 @@ def list_versions(project_dir: Path) -> tuple[list[dict[str, Any]], dict[str, An
         # Build model names for each variant
         models = [f"{config.model_prefix}-{version_name}-{v}" for v in variants]
 
-        versions.append({
-            "name": version_name,
-            "variants": variants,
-            "models": models,
-            "is_release": version_name == config.release_version,
-        })
+        versions.append(
+            {
+                "name": version_name,
+                "variants": variants,
+                "models": models,
+                "is_release": version_name == config.release_version,
+            }
+        )
 
     config_info = {
         "model_prefix": config.model_prefix,

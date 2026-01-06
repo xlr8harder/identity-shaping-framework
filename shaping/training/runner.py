@@ -32,7 +32,9 @@ def _check_for_multiturn(data_path: Path) -> bool:
             try:
                 row = json.loads(line)
                 messages = row.get("messages", [])
-                assistant_count = sum(1 for m in messages if m.get("role") == "assistant")
+                assistant_count = sum(
+                    1 for m in messages if m.get("role") == "assistant"
+                )
                 if assistant_count > 1:
                     return True
             except json.JSONDecodeError:
@@ -52,10 +54,10 @@ def _warn_if_multiturn(data_path: Path) -> None:
     if not _check_for_multiturn(data_path):
         return
 
-    print(f"Note: Training data contains multi-turn conversations.")
-    print(f"  Using train_on_what=LAST_ASSISTANT_MESSAGE (only final turn trained).")
-    print(f"  Earlier assistant messages provide context but aren't trained on.")
-    print(f"  See isf-7od for future multi-turn SFT considerations.")
+    print("Note: Training data contains multi-turn conversations.")
+    print("  Using train_on_what=LAST_ASSISTANT_MESSAGE (only final turn trained).")
+    print("  Earlier assistant messages provide context but aren't trained on.")
+    print("  See isf-7od for future multi-turn SFT considerations.")
 
 
 class _MetricsWatcher:
@@ -95,24 +97,24 @@ class _MetricsWatcher:
         """Process a metrics line and print progress."""
         try:
             data = json.loads(line)
-            step = data.get('step', 0)
-            epoch = data.get('epoch', 0)
-            train_loss = data.get('train_mean_nll', 0)
+            step = data.get("step", 0)
+            epoch = data.get("epoch", 0)
+            train_loss = data.get("train_mean_nll", 0)
             progress = (step + 1) / self.total_steps if self.total_steps > 0 else 0
 
             # Build status line: step | grad | loss | progress [| val]
             parts = [f"Step {step + 1}/{self.total_steps}"]
 
             # Gradient norm (should always be available with default config)
-            grad_norm = data.get('optim/unclipped_grad_l2:mean')
+            grad_norm = data.get("optim/unclipped_grad_l2:mean")
             if grad_norm is not None:
                 parts.append(f"grad: {grad_norm:.2f}")
 
             parts.append(f"loss: {train_loss:.4f}")
-            parts.append(f"{progress*100:.1f}%")
+            parts.append(f"{progress * 100:.1f}%")
 
             # Validation loss at end (optional, comes and goes based on eval_every)
-            val_loss = data.get('test/nll')
+            val_loss = data.get("test/nll")
             if val_loss is not None:
                 parts.append(f"val: {val_loss:.4f}")
 
@@ -126,19 +128,19 @@ def _setup_logging(log_path: Path):
     log_file = log_path / "train.log"
 
     # File handler: capture everything
-    file_handler = logging.FileHandler(log_file, mode='w')
+    file_handler = logging.FileHandler(log_file, mode="w")
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(
-        logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     )
 
     # Console handler: WARNING and above only
     console_handler = logging.StreamHandler(sys.stderr)
     console_handler.setLevel(logging.WARNING)
-    console_handler.setFormatter(logging.Formatter('%(name)s: %(message)s'))
+    console_handler.setFormatter(logging.Formatter("%(name)s: %(message)s"))
 
     # Configure tinker loggers
-    for logger_name in ['tinker', 'tinker_cookbook']:
+    for logger_name in ["tinker", "tinker_cookbook"]:
         logger = logging.getLogger(logger_name)
         logger.handlers.clear()
         logger.addHandler(file_handler)
@@ -149,7 +151,9 @@ def _setup_logging(log_path: Path):
     print(f"Verbose logs: {log_file}")
 
 
-def run_training(config: TrainConfig, force: bool = False, verbose: bool = False) -> Path:
+def run_training(
+    config: TrainConfig, force: bool = False, verbose: bool = False
+) -> Path:
     """Run a training experiment.
 
     Args:
@@ -238,11 +242,15 @@ def run_training(config: TrainConfig, force: bool = False, verbose: bool = False
     # Warn about optim_metrics needing grad_clip (tinker limitation)
     if config.optim_metrics_every > 0 and not config.grad_clip:
         print("Warning: optim_metrics_every has no effect without grad_clip enabled")
-        print("  (tinker does not calculate optimizer metrics like grad norms unless clipping is enabled)")
-        print("  Set --grad-clip to a large value (e.g., 1e12) to get metrics without actual clipping")
+        print(
+            "  (tinker does not calculate optimizer metrics like grad norms unless clipping is enabled)"
+        )
+        print(
+            "  Set --grad-clip to a large value (e.g., 1e12) to get metrics without actual clipping"
+        )
 
     # Print summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Experiment: {config.name}")
     print(f"Model: {config.base_model}")
     print(f"Renderer: {config.renderer}")
@@ -260,7 +268,7 @@ def run_training(config: TrainConfig, force: bool = False, verbose: bool = False
     if config.note:
         print(f"Note: {config.note.split(chr(10))[0]}")  # First line only
     print(f"Log path: {log_path}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     # Set up logging (INFO to file, WARNING+ to console)
     if not verbose:

@@ -6,7 +6,6 @@ Provides the `isf` command with subcommands for working with identity-shaping pr
 import asyncio
 import importlib.util
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -64,7 +63,8 @@ pass_context = click.make_pass_decorator(ProjectContext)
 
 @click.group()
 @click.option(
-    "--project", "-p",
+    "--project",
+    "-p",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
     default=".",
     help="Project directory (default: current directory)",
@@ -122,7 +122,9 @@ def mq(ctx):
 def info(ctx: ProjectContext):
     """Show project configuration info."""
     click.echo(f"Project directory: {ctx.project_dir}")
-    click.echo(f"Registry: {ctx.registry_path if ctx.registry_path.exists() else 'not found'}")
+    click.echo(
+        f"Registry: {ctx.registry_path if ctx.registry_path.exists() else 'not found'}"
+    )
     click.echo(f".env file: {'exists' if ctx.env_path.exists() else 'not found'}")
 
     if ctx.registry_path.exists():
@@ -134,6 +136,7 @@ def info(ctx: ProjectContext):
 # ============================================================================
 # Prompts subcommand group
 # ============================================================================
+
 
 @cli.group()
 def prompts():
@@ -163,17 +166,18 @@ def build(ctx: ProjectContext):
 
         click.echo("Built dev sysprompts:")
         for variant, path in sysprompts.items():
-            lines = path.read_text().count('\n')
+            lines = path.read_text().count("\n")
             click.echo(f"  {variant}: {path.name} ({lines} lines)")
 
         click.echo(f"\nRebuilt registry: {registry_path}")
 
         # Show models in registry
         import json
+
         with open(registry_path) as f:
             registry = json.load(f)
         click.echo(f"Models: {len(registry['models'])}")
-        for name in sorted(registry['models'].keys()):
+        for name in sorted(registry["models"].keys()):
             click.echo(f"  - {name}")
 
     except FileNotFoundError as e:
@@ -245,6 +249,7 @@ def list_versions(ctx: ProjectContext):
 # Eval subcommand group
 # ============================================================================
 
+
 @cli.group()
 def eval():
     """Run evaluations.
@@ -259,16 +264,30 @@ def eval():
 @click.argument("model")
 @click.option("--limit", "-n", type=int, help="Limit number of samples")
 @click.option("--seed", "-s", type=int, help="Random seed for shuffling")
-@click.option("--output-dir", "-o", type=click.Path(path_type=Path), help="Output directory")
+@click.option(
+    "--output-dir", "-o", type=click.Path(path_type=Path), help="Output directory"
+)
 @click.option("--runs", type=int, default=1, help="Runs per sample (for variance)")
-@click.option("--concurrency", "-c", type=int, default=20, help="Max concurrent requests")
+@click.option(
+    "--concurrency", "-c", type=int, default=20, help="Max concurrent requests"
+)
 @click.option("--quiet", "-q", is_flag=True, help="Suppress progress output")
 @click.option("--no-record", is_flag=True, help="Don't record result to results index")
 @click.option("--note", help="Note to attach to the result record")
 @pass_context
-def eval_run(ctx: ProjectContext, eval_name: str, model: str, limit: int, seed: int,
-             output_dir: Path, runs: int, concurrency: int, quiet: bool,
-             no_record: bool, note: str):
+def eval_run(
+    ctx: ProjectContext,
+    eval_name: str,
+    model: str,
+    limit: int,
+    seed: int,
+    output_dir: Path,
+    runs: int,
+    concurrency: int,
+    quiet: bool,
+    no_record: bool,
+    note: str,
+):
     """Run an evaluation against a model.
 
     EVAL_NAME can be:
@@ -337,7 +356,7 @@ def eval_run(ctx: ProjectContext, eval_name: str, model: str, limit: int, seed: 
 
         if quiet:
             # Print minimal summary for scripting
-            if hasattr(metrics, 'accuracy'):
+            if hasattr(metrics, "accuracy"):
                 click.echo(f"{metrics.accuracy:.1%}")
             else:
                 click.echo(f"{metrics.mean_score:.2f}")
@@ -361,7 +380,7 @@ def _record_eval_result(
     from .eval.judges import LLMJudge
 
     # Determine score
-    if hasattr(metrics, 'accuracy'):
+    if hasattr(metrics, "accuracy"):
         score = metrics.accuracy
     else:
         score = metrics.mean_score
@@ -443,7 +462,9 @@ def eval_list(ctx: ProjectContext):
 
     if not evals:
         click.echo("No evaluations available.")
-        click.echo(f"\nTo add project evals, create Python files in {ctx.project_dir}/evals/")
+        click.echo(
+            f"\nTo add project evals, create Python files in {ctx.project_dir}/evals/"
+        )
         click.echo("with Eval subclasses. See docs for examples.")
 
 
@@ -517,11 +538,13 @@ def _discover_project_evals(project_dir: Path) -> dict:
             # Find all Eval subclasses
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
-                if (isinstance(attr, type)
+                if (
+                    isinstance(attr, type)
                     and issubclass(attr, Eval)
                     and attr is not Eval
-                    and hasattr(attr, 'name')
-                    and attr.name):  # Must have a name
+                    and hasattr(attr, "name")
+                    and attr.name
+                ):  # Must have a name
                     eval_name = attr.name
                     discovered[eval_name] = {
                         "source": f"{module_name}:{attr_name}",
@@ -580,6 +603,7 @@ def _list_evals(project_dir: Path) -> dict:
 # Pipeline subcommand group
 # ============================================================================
 
+
 @cli.group()
 def pipeline():
     """Run data pipelines.
@@ -592,11 +616,14 @@ def pipeline():
 @pipeline.command("run")
 @click.argument("pipeline_name")
 @click.option("--limit", "-n", type=int, help="Process only first N records")
-@click.option("--output", "-o", type=click.Path(path_type=Path), help="Override output path")
+@click.option(
+    "--output", "-o", type=click.Path(path_type=Path), help="Override output path"
+)
 @click.option("--workers", "-w", type=int, help="Number of parallel workers")
 @pass_context
-def pipeline_run(ctx: ProjectContext, pipeline_name: str, limit: int,
-                 output: Path, workers: int):
+def pipeline_run(
+    ctx: ProjectContext, pipeline_name: str, limit: int, output: Path, workers: int
+):
     """Run a pipeline by name.
 
     PIPELINE_NAME should match a TrackedTask subclass with that name
@@ -656,7 +683,9 @@ def pipeline_list(ctx: ProjectContext):
             click.echo(f"  {name}: {source} (workers: {workers})")
     else:
         click.echo("No pipelines found.")
-        click.echo(f"\nTo add pipelines, create Python files in {ctx.project_dir}/pipelines/")
+        click.echo(
+            f"\nTo add pipelines, create Python files in {ctx.project_dir}/pipelines/"
+        )
         click.echo("with TrackedTask subclasses that have a 'name' attribute.")
 
 
@@ -691,16 +720,18 @@ def _discover_pipelines(project_dir: Path) -> dict:
             # Find all TrackedTask subclasses with a name
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
-                if (isinstance(attr, type)
+                if (
+                    isinstance(attr, type)
                     and issubclass(attr, TrackedTask)
                     and attr is not TrackedTask
-                    and hasattr(attr, 'name')
-                    and attr.name):  # Must have a name
+                    and hasattr(attr, "name")
+                    and attr.name
+                ):  # Must have a name
                     pipeline_name = attr.name
                     discovered[pipeline_name] = {
                         "source": f"{module_name}:{attr_name}",
                         "class": attr,
-                        "default_workers": getattr(attr, 'default_workers', 4),
+                        "default_workers": getattr(attr, "default_workers", 4),
                     }
 
         except Exception as e:
@@ -733,6 +764,7 @@ def _list_pipelines(project_dir: Path) -> dict:
 # Train subcommand group
 # ============================================================================
 
+
 @cli.group()
 def train():
     """Run training experiments.
@@ -746,7 +778,9 @@ def train():
 @train.command("run")
 @click.argument("config_path", type=click.Path(exists=True, path_type=Path))
 # Per-run options
-@click.option("--data", "-d", type=click.Path(path_type=Path), help="Training data file")
+@click.option(
+    "--data", "-d", type=click.Path(path_type=Path), help="Training data file"
+)
 @click.option("--name", "-n", help="Experiment name (auto-generated if not provided)")
 @click.option("--epochs", "-e", type=int, help="Number of epochs")
 # Model options
@@ -754,7 +788,11 @@ def train():
 @click.option("--renderer", help="Override renderer (e.g., qwen3, deepseekv3)")
 # Hyperparameters
 @click.option("--lr", type=float, help="Learning rate")
-@click.option("--lr-schedule", type=click.Choice(["constant", "linear", "cosine"]), help="LR schedule")
+@click.option(
+    "--lr-schedule",
+    type=click.Choice(["constant", "linear", "cosine"]),
+    help="LR schedule",
+)
 @click.option("--batch-size", type=int, help="Batch size")
 @click.option("--lora-rank", type=int, help="LoRA rank")
 @click.option("--max-length", type=int, help="Max sequence length")
@@ -767,20 +805,46 @@ def train():
 @click.option("--save-every", type=int, help="Save checkpoint every N steps")
 # Training tweaks
 @click.option("--grad-clip", type=float, help="Gradient clipping norm")
-@click.option("--normalize-weights", is_flag=True, default=None, help="Normalize per-example weights")
-@click.option("--optim-metrics-every", type=int, help="Log optimizer metrics every N steps")
+@click.option(
+    "--normalize-weights",
+    is_flag=True,
+    default=None,
+    help="Normalize per-example weights",
+)
+@click.option(
+    "--optim-metrics-every", type=int, help="Log optimizer metrics every N steps"
+)
 # Annotation
 @click.option("--note", help="Free-form note about this experiment")
 # Control
 @click.option("--force", "-f", is_flag=True, help="Overwrite existing experiment")
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
 @pass_context
-def train_run(ctx: ProjectContext, config_path: Path, data: Path, name: str,
-              epochs: int, model: str, renderer: str, lr: float, lr_schedule: str,
-              batch_size: int, lora_rank: int, max_length: int,
-              seed: int, shuffle_seed: int, test_size: int, eval_every: int,
-              save_every: int, grad_clip: float, normalize_weights: bool,
-              optim_metrics_every: int, note: str, force: bool, verbose: bool):
+def train_run(
+    ctx: ProjectContext,
+    config_path: Path,
+    data: Path,
+    name: str,
+    epochs: int,
+    model: str,
+    renderer: str,
+    lr: float,
+    lr_schedule: str,
+    batch_size: int,
+    lora_rank: int,
+    max_length: int,
+    seed: int,
+    shuffle_seed: int,
+    test_size: int,
+    eval_every: int,
+    save_every: int,
+    grad_clip: float,
+    normalize_weights: bool,
+    optim_metrics_every: int,
+    note: str,
+    force: bool,
+    verbose: bool,
+):
     """Run a training experiment from a config file.
 
     CONFIG_PATH is a YAML file with base hyperparameters.
@@ -871,10 +935,13 @@ def train_list(ctx: ProjectContext):
     # List experiment logs
     if logs_dir.exists():
         import json
+
         exp_dirs = sorted([d for d in logs_dir.iterdir() if d.is_dir()])
         if exp_dirs:
             click.echo(f"Experiments ({logs_dir}):")
-            for exp in exp_dirs[-20:]:  # Show most recent 20 (sorted ascending, so take last)
+            for exp in exp_dirs[
+                -20:
+            ]:  # Show most recent 20 (sorted ascending, so take last)
                 # Check for config and extract note
                 isf_config = exp / "train-config.json"
                 tinker_config = exp / "config.json"
@@ -888,8 +955,8 @@ def train_list(ctx: ProjectContext):
                             # First line, truncated
                             first_line = cfg["note"].split("\n")[0][:40]
                             note_preview = f" - {first_line}"
-                    except:
-                        pass
+                    except (OSError, json.JSONDecodeError, KeyError):
+                        pass  # Show nothing if config unreadable
                     marker = "✓"
                 elif tinker_config.exists():
                     marker = " "
@@ -939,10 +1006,10 @@ def train_show(ctx: ProjectContext, experiment: str):
         click.echo(f"  Epochs: {config.get('epochs', 'unknown')}")
         click.echo(f"  Batch size: {config.get('batch_size', 'unknown')}")
         click.echo(f"  LoRA rank: {config.get('lora_rank', 'unknown')}")
-        if config.get('note'):
+        if config.get("note"):
             click.echo()
             click.echo("Note:")
-            for line in config['note'].split('\n'):
+            for line in config["note"].split("\n"):
                 click.echo(f"  {line}")
         click.echo()
     elif tinker_config.exists():
@@ -950,10 +1017,10 @@ def train_show(ctx: ProjectContext, experiment: str):
             config = json.load(f)
         click.echo("Configuration (Tinker):")
         click.echo(f"  Model: {config.get('model_name', 'unknown')}")
-        ds = config.get('dataset_builder', {})
+        ds = config.get("dataset_builder", {})
         click.echo(f"  Data: {ds.get('file_path', 'unknown')}")
         click.echo(f"  Epochs: {config.get('num_epochs', 'unknown')}")
-        common = ds.get('common_config', {})
+        common = ds.get("common_config", {})
         click.echo(f"  Batch size: {common.get('batch_size', 'unknown')}")
         click.echo(f"  LoRA rank: {config.get('lora_rank', 'unknown')}")
         click.echo()
@@ -969,9 +1036,9 @@ def train_show(ctx: ProjectContext, experiment: str):
         if checkpoints:
             click.echo(f"Checkpoints ({len(checkpoints)}):")
             for ckpt in checkpoints[-5:]:
-                name = ckpt.get('name', '?')
-                epoch = ckpt.get('epoch', '?')
-                state_path = ckpt.get('state_path', '')
+                name = ckpt.get("name", "?")
+                epoch = ckpt.get("epoch", "?")
+                state_path = ckpt.get("state_path", "")
                 click.echo(f"  {name} (epoch {epoch}): {state_path}")
             if len(checkpoints) > 5:
                 click.echo(f"  ... and {len(checkpoints) - 5} earlier")
@@ -994,16 +1061,26 @@ def train_show(ctx: ProjectContext, experiment: str):
 # Chat command
 # ============================================================================
 
+
 @cli.command()
 @click.argument("model")
 @click.option("--port", "-p", type=int, default=7860, help="Port (default: 7860)")
 @click.option("--share", is_flag=True, help="Create public link via Gradio")
 @click.option("--auth", metavar="USER:PASS", help="Require HTTP basic auth")
 @click.option("--title", "-t", help="Custom title for the chat interface")
-@click.option("--temperature", type=float, default=0.7, help="Sampling temperature (default: 0.7)")
+@click.option(
+    "--temperature", type=float, default=0.7, help="Sampling temperature (default: 0.7)"
+)
 @pass_context
-def chat(ctx: ProjectContext, model: str, port: int, share: bool, auth: str,
-         title: str, temperature: float):
+def chat(
+    ctx: ProjectContext,
+    model: str,
+    port: int,
+    share: bool,
+    auth: str,
+    title: str,
+    temperature: float,
+):
     """Launch a Gradio chat interface for a model.
 
     MODEL is a model name from the project's mq registry.
@@ -1024,7 +1101,6 @@ def chat(ctx: ProjectContext, model: str, port: int, share: bool, auth: str,
             raise click.ClickException("--auth must be in format USER:PASS")
         auth_tuple = tuple(auth.split(":", 1))
 
-
     try:
         run_chat(
             model=model,
@@ -1044,6 +1120,7 @@ def chat(ctx: ProjectContext, model: str, port: int, share: bool, auth: str,
 # Results subcommand group
 # ============================================================================
 
+
 @cli.group()
 def results():
     """Query and compare eval results.
@@ -1058,11 +1135,23 @@ def results():
 @click.option("--model", "-m", help="Filter by model alias")
 @click.option("--eval", "eval_name", help="Filter by eval name")
 @click.option("--training-run", "-t", help="Filter by training run (e.g., E037)")
-@click.option("--all", "-a", "include_all", is_flag=True, help="Include partial and archived evals")
+@click.option(
+    "--all",
+    "-a",
+    "include_all",
+    is_flag=True,
+    help="Include partial and archived evals",
+)
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 @pass_context
-def results_list(ctx: ProjectContext, model: str, eval_name: str,
-                 training_run: str, include_all: bool, as_json: bool):
+def results_list(
+    ctx: ProjectContext,
+    model: str,
+    eval_name: str,
+    training_run: str,
+    include_all: bool,
+    as_json: bool,
+):
     """List eval results with optional filters.
 
     By default, excludes partial (incomplete) and archived results.
@@ -1125,7 +1214,11 @@ def results_list(ctx: ProjectContext, model: str, eval_name: str,
     click.echo("-" * 90)
 
     for r in sorted(results, key=lambda x: x.timestamp, reverse=True):
-        score_str = f"{r.results.score:.2%}" if r.results.score <= 1 else f"{r.results.score:.2f}"
+        score_str = (
+            f"{r.results.score:.2%}"
+            if r.results.score <= 1
+            else f"{r.results.score:.2f}"
+        )
         date_str = r.timestamp.strftime("%Y-%m-%d %H:%M")
         flags = []
         if not r.eval.complete:
@@ -1133,7 +1226,9 @@ def results_list(ctx: ProjectContext, model: str, eval_name: str,
         if r.archived:
             flags.append("archived")
         flag_str = f" ({', '.join(flags)})" if flags else ""
-        click.echo(f"{r.id:<30} {r.eval.name:<20} {r.model.alias:<20} {score_str:<10} {date_str}{flag_str}")
+        click.echo(
+            f"{r.id:<30} {r.eval.name:<20} {r.model.alias:<20} {score_str:<10} {date_str}{flag_str}"
+        )
 
     # Show hidden count
     if hidden_archived or hidden_partial:
@@ -1147,10 +1242,18 @@ def results_list(ctx: ProjectContext, model: str, eval_name: str,
 
 @results.command("show")
 @click.argument("identifier")
-@click.option("--all", "-a", "include_all", is_flag=True, help="Include partial and archived evals")
+@click.option(
+    "--all",
+    "-a",
+    "include_all",
+    is_flag=True,
+    help="Include partial and archived evals",
+)
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 @pass_context
-def results_show(ctx: ProjectContext, identifier: str, include_all: bool, as_json: bool):
+def results_show(
+    ctx: ProjectContext, identifier: str, include_all: bool, as_json: bool
+):
     """Show eval result(s).
 
     IDENTIFIER can be:
@@ -1193,8 +1296,7 @@ def results_show(ctx: ProjectContext, identifier: str, include_all: bool, as_jso
         return
 
     raise click.ClickException(
-        f"Not found: {identifier}\n"
-        f"No result ID or model matches this identifier."
+        f"Not found: {identifier}\nNo result ID or model matches this identifier."
     )
 
 
@@ -1239,7 +1341,11 @@ def _show_single_result(result: EvalResult, as_json: bool):
 
     # Results
     click.echo("Results:")
-    score_str = f"{result.results.score:.2%}" if result.results.score <= 1 else f"{result.results.score:.2f}"
+    score_str = (
+        f"{result.results.score:.2%}"
+        if result.results.score <= 1
+        else f"{result.results.score:.2f}"
+    )
     click.echo(f"  Score: {score_str}")
     click.echo(f"  Aggregation: {result.results.aggregation}")
     if result.results.std is not None:
@@ -1264,7 +1370,9 @@ def _show_single_result(result: EvalResult, as_json: bool):
             click.echo(f"  {line}")
 
 
-def _show_model_overview(model: str, store: ResultsStore, include_all: bool, as_json: bool):
+def _show_model_overview(
+    model: str, store: ResultsStore, include_all: bool, as_json: bool
+):
     """Show overview of all results for a model."""
     results = store.list(model=model, include_all=include_all)
 
@@ -1347,7 +1455,11 @@ def _show_model_overview(model: str, store: ResultsStore, include_all: bool, as_
 
 def _short_base_model(model_info) -> str:
     """Extract short name from model spec (e.g., 'Qwen/Qwen3-32B' -> 'qwen3-32b')."""
-    base = getattr(model_info, "base_model", None) or getattr(model_info, "model_id", None) or ""
+    base = (
+        getattr(model_info, "base_model", None)
+        or getattr(model_info, "model_id", None)
+        or ""
+    )
     if "/" in base:
         return base.split("/")[-1].lower()
     return base.lower() if base else ""
@@ -1429,8 +1541,18 @@ def _eval_config_key(r) -> tuple:
 
 def _format_eval_header(key: tuple) -> str:
     """Format eval configuration key as header line."""
-    (name, dataset_sha, judge_prompt_sha, temp, n_samples,
-     runs_per_sample, judge, judge_temp, judge_runs, agg) = key
+    (
+        name,
+        dataset_sha,
+        judge_prompt_sha,
+        temp,
+        n_samples,
+        runs_per_sample,
+        judge,
+        judge_temp,
+        judge_runs,
+        agg,
+    ) = key
 
     parts = [name]
     parts.append(f"temp={temp}")
@@ -1459,9 +1581,21 @@ def _get_training_diffs(model1, model2) -> dict:
 
     # Fields to compare (skip name, data, log_dir, note)
     compare_fields = [
-        "base_model", "epochs", "batch_size", "lora_rank", "learning_rate",
-        "lr_schedule", "max_length", "seed", "shuffle_seed", "test_size",
-        "eval_every", "save_every", "renderer", "normalize_weights", "grad_clip",
+        "base_model",
+        "epochs",
+        "batch_size",
+        "lora_rank",
+        "learning_rate",
+        "lr_schedule",
+        "max_length",
+        "seed",
+        "shuffle_seed",
+        "test_size",
+        "eval_every",
+        "save_every",
+        "renderer",
+        "normalize_weights",
+        "grad_clip",
     ]
 
     diffs = {}
@@ -1477,11 +1611,18 @@ def _get_training_diffs(model1, model2) -> dict:
 @results.command("compare")
 @click.argument("args", nargs=-1, required=True)
 @click.option("--eval", "eval_name", help="Filter by eval name")
-@click.option("--all", "-a", "include_all", is_flag=True, help="Include partial and archived evals")
+@click.option(
+    "--all",
+    "-a",
+    "include_all",
+    is_flag=True,
+    help="Include partial and archived evals",
+)
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 @pass_context
-def results_compare(ctx: ProjectContext, args: tuple, eval_name: str,
-                    include_all: bool, as_json: bool):
+def results_compare(
+    ctx: ProjectContext, args: tuple, eval_name: str, include_all: bool, as_json: bool
+):
     """Compare results across models or between specific results.
 
     ARGS can be:
@@ -1510,8 +1651,14 @@ def results_compare(ctx: ProjectContext, args: tuple, eval_name: str,
         _compare_models(ctx, store, args, eval_name, include_all, as_json)
 
 
-def _compare_models(ctx: ProjectContext, store: ResultsStore, models: tuple,
-                    eval_name: str | None, include_all: bool, as_json: bool):
+def _compare_models(
+    ctx: ProjectContext,
+    store: ResultsStore,
+    models: tuple,
+    eval_name: str | None,
+    include_all: bool,
+    as_json: bool,
+):
     """Model-vs-model comparison."""
     # Collect all results for each model
     model_results = {}
@@ -1599,8 +1746,7 @@ def _compare_models(ctx: ProjectContext, store: ResultsStore, models: tuple,
         # Sort each model's results by timestamp (oldest first for chronological order)
         for model in models:
             results_by_model[model] = sorted(
-                results_by_model[model],
-                key=lambda x: x.timestamp
+                results_by_model[model], key=lambda x: x.timestamp
             )
 
         # Find max runs across models
@@ -1618,7 +1764,7 @@ def _compare_models(ctx: ProjectContext, store: ResultsStore, models: tuple,
 
         # Data rows
         for i in range(max_runs):
-            row_parts = [f"  {i+1:<4}"]
+            row_parts = [f"  {i + 1:<4}"]
             scores = []
 
             for model in models:
@@ -1699,9 +1845,15 @@ def _compare_results(store: ResultsStore, short_ids: tuple, as_json: bool):
         if r1.eval.dataset_sha != r2.eval.dataset_sha:
             eval_diffs["dataset_sha"] = (r1.eval.dataset_sha, r2.eval.dataset_sha)
         if r1.eval.judge_prompt_sha != r2.eval.judge_prompt_sha:
-            eval_diffs["judge_prompt_sha"] = (r1.eval.judge_prompt_sha, r2.eval.judge_prompt_sha)
+            eval_diffs["judge_prompt_sha"] = (
+                r1.eval.judge_prompt_sha,
+                r2.eval.judge_prompt_sha,
+            )
         if r1.model_sampling.temperature != r2.model_sampling.temperature:
-            eval_diffs["temperature"] = (r1.model_sampling.temperature, r2.model_sampling.temperature)
+            eval_diffs["temperature"] = (
+                r1.model_sampling.temperature,
+                r2.model_sampling.temperature,
+            )
         if r1.eval.n_samples != r2.eval.n_samples:
             eval_diffs["n_samples"] = (r1.eval.n_samples, r2.eval.n_samples)
 

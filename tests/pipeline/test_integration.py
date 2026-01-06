@@ -33,7 +33,10 @@ class SimpleSynthesisTask(TrackedTask):
         )
 
         full_messages = messages + [
-            {"role": "assistant", "content": response.get_text() if response.is_success else "ERROR"}
+            {
+                "role": "assistant",
+                "content": response.get_text() if response.is_success else "ERROR",
+            }
         ]
 
         return TrainingSample(

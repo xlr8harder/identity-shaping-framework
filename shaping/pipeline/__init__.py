@@ -54,8 +54,8 @@ __all__ = [
     # Pipeline runner
     "run_pipeline",
     # Task base classes
-    "PipelineTask",      # alias for GeneratorTask (no tracking)
-    "TrackedTask",       # with provenance capture
+    "PipelineTask",  # alias for GeneratorTask (no tracking)
+    "TrackedTask",  # with provenance capture
     "TaskFailed",
     # Pre-built task implementations
     "SingleTurnTask",

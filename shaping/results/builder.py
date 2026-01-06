@@ -69,7 +69,9 @@ def _load_training_config(exp_name: str, logs_dir: Path) -> Optional[TrainConfig
     return TrainConfig.model_validate(data)
 
 
-def _get_checkpoint_path(exp_name: str, checkpoint_name: str, logs_dir: Path) -> Optional[str]:
+def _get_checkpoint_path(
+    exp_name: str, checkpoint_name: str, logs_dir: Path
+) -> Optional[str]:
     """Get the full checkpoint path from experiment logs."""
     checkpoints_file = logs_dir / exp_name / "checkpoints.jsonl"
     if not checkpoints_file.exists():

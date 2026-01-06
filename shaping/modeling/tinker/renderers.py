@@ -90,7 +90,7 @@ class DeepSeekV3:
 
         # Detect: does build_generation_prompt prefill <think>?
         upstream_prefills = self._probe_upstream_prefills_think()
-        behavior['upstream_prefills_think'] = upstream_prefills
+        behavior["upstream_prefills_think"] = upstream_prefills
 
         # Check if behavior matches expectations
         if upstream_prefills != self.EXPECTED_UPSTREAM_PREFILLS_THINK:
@@ -139,12 +139,11 @@ class DeepSeekV3:
             tinker.ModelInput ready for sampling
         """
         renderer_messages = [
-            Message(role=m["role"], content=m["content"])
-            for m in messages
+            Message(role=m["role"], content=m["content"]) for m in messages
         ]
 
         # Add prefill if upstream doesn't do it
-        prefill = None if self._behavior['upstream_prefills_think'] else "<think>"
+        prefill = None if self._behavior["upstream_prefills_think"] else "<think>"
 
         return self._inference_renderer.build_generation_prompt(
             renderer_messages, role=role, prefill=prefill
@@ -167,8 +166,7 @@ class DeepSeekV3:
             (model_input, weights) tuple for training
         """
         renderer_messages = [
-            Message(role=m["role"], content=m["content"])
-            for m in messages
+            Message(role=m["role"], content=m["content"]) for m in messages
         ]
 
         return self._training_renderer.build_supervised_example(
@@ -240,8 +238,7 @@ class Qwen3:
         - Strips thinking from historical assistant messages
         """
         renderer_messages = [
-            Message(role=m["role"], content=m["content"])
-            for m in messages
+            Message(role=m["role"], content=m["content"]) for m in messages
         ]
         return self._inference_renderer.build_generation_prompt(
             renderer_messages, role=role
@@ -257,8 +254,7 @@ class Qwen3:
         Preserves thinking traces in history for training (extension property).
         """
         renderer_messages = [
-            Message(role=m["role"], content=m["content"])
-            for m in messages
+            Message(role=m["role"], content=m["content"]) for m in messages
         ]
         return self._training_renderer.build_supervised_example(
             renderer_messages, train_on_what=train_on_what
@@ -310,8 +306,7 @@ class KimiK2:
     ) -> tinker.ModelInput:
         """Build prompt for inference/generation."""
         renderer_messages = [
-            Message(role=m["role"], content=m["content"])
-            for m in messages
+            Message(role=m["role"], content=m["content"]) for m in messages
         ]
         return self._renderer.build_generation_prompt(renderer_messages, role=role)
 
@@ -322,8 +317,7 @@ class KimiK2:
     ) -> tuple[tinker.ModelInput, torch.Tensor]:
         """Build tokens and weights for supervised training."""
         renderer_messages = [
-            Message(role=m["role"], content=m["content"])
-            for m in messages
+            Message(role=m["role"], content=m["content"]) for m in messages
         ]
         return self._renderer.build_supervised_example(
             renderer_messages, train_on_what=train_on_what
@@ -370,7 +364,7 @@ class GptOss:
 
         # Detect: does renderer add the HF-style system message?
         upstream_adds_system = self._probe_upstream_adds_system()
-        behavior['upstream_adds_system'] = upstream_adds_system
+        behavior["upstream_adds_system"] = upstream_adds_system
 
         if upstream_adds_system != self.EXPECTED_UPSTREAM_ADDS_SYSTEM:
             logger.warning(
@@ -406,8 +400,7 @@ class GptOss:
         This is typically preferred for fine-tuned models.
         """
         renderer_messages = [
-            Message(role=m["role"], content=m["content"])
-            for m in messages
+            Message(role=m["role"], content=m["content"]) for m in messages
         ]
         return self._renderer.build_generation_prompt(renderer_messages, role=role)
 
@@ -418,8 +411,7 @@ class GptOss:
     ) -> tuple[tinker.ModelInput, torch.Tensor]:
         """Build tokens and weights for supervised training."""
         renderer_messages = [
-            Message(role=m["role"], content=m["content"])
-            for m in messages
+            Message(role=m["role"], content=m["content"]) for m in messages
         ]
         return self._renderer.build_supervised_example(
             renderer_messages, train_on_what=train_on_what

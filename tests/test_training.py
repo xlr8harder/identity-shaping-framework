@@ -1,13 +1,17 @@
 """Tests for shaping.training module."""
 
 import json
-import tempfile
 from pathlib import Path
 
 import pytest
 import yaml
 
-from shaping.training import TrainConfig, build_config, load_config, get_next_experiment_name
+from shaping.training import (
+    TrainConfig,
+    build_config,
+    load_config,
+    get_next_experiment_name,
+)
 from shaping.training.runner import _check_for_multiturn
 
 
@@ -94,10 +98,7 @@ class TestTrainConfig:
 
     def test_log_path_property(self):
         """log_path combines log_dir and name."""
-        config = TrainConfig(
-            **REQUIRED_FIELDS,
-            log_dir="logs"
-        )
+        config = TrainConfig(**REQUIRED_FIELDS, log_dir="logs")
         assert config.log_path == Path("logs/E001")
 
     def test_data_path_property(self):
@@ -108,11 +109,7 @@ class TestTrainConfig:
 
     def test_to_dict(self):
         """to_dict returns all config values."""
-        config = TrainConfig(
-            **REQUIRED_FIELDS,
-            epochs=3,
-            note="Test experiment"
-        )
+        config = TrainConfig(**REQUIRED_FIELDS, epochs=3, note="Test experiment")
         d = config.to_dict()
         assert d["base_model"] == "test/model"
         assert d["data"] == "train.jsonl"
@@ -121,10 +118,26 @@ class TestTrainConfig:
         assert d["note"] == "Test experiment"
         # Check all keys present
         expected_keys = {
-            "name", "base_model", "data", "epochs", "batch_size", "lora_rank",
-            "learning_rate", "lr_schedule", "max_length", "seed", "shuffle_seed",
-            "test_size", "eval_every", "save_every", "renderer", "grad_clip",
-            "normalize_weights", "optim_metrics_every", "note", "log_dir"
+            "name",
+            "base_model",
+            "data",
+            "epochs",
+            "batch_size",
+            "lora_rank",
+            "learning_rate",
+            "lr_schedule",
+            "max_length",
+            "seed",
+            "shuffle_seed",
+            "test_size",
+            "eval_every",
+            "save_every",
+            "renderer",
+            "grad_clip",
+            "normalize_weights",
+            "optim_metrics_every",
+            "note",
+            "log_dir",
         }
         assert set(d.keys()) == expected_keys
 
@@ -156,11 +169,9 @@ class TestBuildConfig:
     def test_loads_yaml_file(self, tmp_path, data_file):
         """Loads config from YAML file."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text(yaml.dump({
-            "base_model": "test/model",
-            "data": str(data_file),
-            "epochs": 2
-        }))
+        config_file.write_text(
+            yaml.dump({"base_model": "test/model", "data": str(data_file), "epochs": 2})
+        )
 
         config = build_config(config_file, **self.RESOLVED)
         assert config.base_model == "test/model"
@@ -170,11 +181,9 @@ class TestBuildConfig:
     def test_cli_overrides(self, tmp_path, data_file):
         """CLI overrides take precedence over file values."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text(yaml.dump({
-            "base_model": "test/model",
-            "data": str(data_file),
-            "epochs": 2
-        }))
+        config_file.write_text(
+            yaml.dump({"base_model": "test/model", "data": str(data_file), "epochs": 2})
+        )
 
         config = build_config(config_file, epochs=5, batch_size=64, **self.RESOLVED)
         assert config.epochs == 5
@@ -183,11 +192,9 @@ class TestBuildConfig:
     def test_none_overrides_ignored(self, tmp_path, data_file):
         """None values in overrides are ignored."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text(yaml.dump({
-            "base_model": "test/model",
-            "data": str(data_file),
-            "epochs": 2
-        }))
+        config_file.write_text(
+            yaml.dump({"base_model": "test/model", "data": str(data_file), "epochs": 2})
+        )
 
         config = build_config(config_file, epochs=None, **self.RESOLVED)
         assert config.epochs == 2  # Not overwritten
@@ -195,12 +202,16 @@ class TestBuildConfig:
     def test_hyphen_underscore_normalization(self, tmp_path, data_file):
         """YAML keys with hyphens are normalized to underscores."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text(yaml.dump({
-            "base-model": "test/model",
-            "data": str(data_file),
-            "lr-schedule": "cosine",
-            "lora-rank": 16
-        }))
+        config_file.write_text(
+            yaml.dump(
+                {
+                    "base-model": "test/model",
+                    "data": str(data_file),
+                    "lr-schedule": "cosine",
+                    "lora-rank": 16,
+                }
+            )
+        )
 
         config = build_config(config_file, **self.RESOLVED)
         assert config.base_model == "test/model"
@@ -210,10 +221,9 @@ class TestBuildConfig:
     def test_auto_generates_experiment_name(self, tmp_path, data_file):
         """Auto-generates experiment name if not provided."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text(yaml.dump({
-            "base_model": "test/model",
-            "data": str(data_file)
-        }))
+        config_file.write_text(
+            yaml.dump({"base_model": "test/model", "data": str(data_file)})
+        )
 
         # Create empty log dir for get_next_experiment_name
         log_dir = tmp_path / "logs"
@@ -223,11 +233,15 @@ class TestBuildConfig:
     def test_auto_calculates_save_every(self, tmp_path, data_file):
         """Calculates save_every from data size if not provided."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text(yaml.dump({
-            "base_model": "test/model",
-            "data": str(data_file),
-            "batch_size": 10,  # 100 rows / 10 = 10 steps/epoch
-        }))
+        config_file.write_text(
+            yaml.dump(
+                {
+                    "base_model": "test/model",
+                    "data": str(data_file),
+                    "batch_size": 10,  # 100 rows / 10 = 10 steps/epoch
+                }
+            )
+        )
 
         # Provide renderer and learning_rate but not save_every
         config = build_config(
@@ -241,11 +255,15 @@ class TestBuildConfig:
     def test_shuffle_seed_defaults_to_seed(self, tmp_path, data_file):
         """shuffle_seed defaults to seed if not provided."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text(yaml.dump({
-            "base_model": "test/model",
-            "data": str(data_file),
-            "seed": 123,
-        }))
+        config_file.write_text(
+            yaml.dump(
+                {
+                    "base_model": "test/model",
+                    "data": str(data_file),
+                    "seed": 123,
+                }
+            )
+        )
 
         config = build_config(
             config_file,
@@ -279,10 +297,14 @@ class TestBuildConfig:
     def test_data_file_not_found(self, tmp_path):
         """Raises FileNotFoundError if data file doesn't exist."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text(yaml.dump({
-            "base_model": "test/model",
-            "data": "/nonexistent/train.jsonl",
-        }))
+        config_file.write_text(
+            yaml.dump(
+                {
+                    "base_model": "test/model",
+                    "data": "/nonexistent/train.jsonl",
+                }
+            )
+        )
 
         # Provide renderer/learning_rate but NOT save_every (triggers data read)
         with pytest.raises(FileNotFoundError, match="Training data not found"):
@@ -296,10 +318,14 @@ class TestBuildConfig:
     def test_load_config_is_alias(self, tmp_path, data_file):
         """load_config is a backwards-compatible alias for build_config."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text(yaml.dump({
-            "base_model": "test/model",
-            "data": str(data_file),
-        }))
+        config_file.write_text(
+            yaml.dump(
+                {
+                    "base_model": "test/model",
+                    "data": str(data_file),
+                }
+            )
+        )
 
         config = load_config(config_file, **self.RESOLVED)
         assert config.base_model == "test/model"
@@ -309,10 +335,14 @@ class TestBuildConfig:
         data_file = tmp_path / "empty.jsonl"
         data_file.write_text("")
         config_file = tmp_path / "config.yaml"
-        config_file.write_text(yaml.dump({
-            "base_model": "test/model",
-            "data": str(data_file),
-        }))
+        config_file.write_text(
+            yaml.dump(
+                {
+                    "base_model": "test/model",
+                    "data": str(data_file),
+                }
+            )
+        )
 
         with pytest.raises(ValueError, match="Training data file is empty"):
             build_config(
@@ -325,11 +355,15 @@ class TestBuildConfig:
     def test_test_size_exceeds_rows(self, tmp_path, data_file):
         """Raises ValueError when test_size >= total rows."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text(yaml.dump({
-            "base_model": "test/model",
-            "data": str(data_file),
-            "test_size": 200,  # data_file has 100 rows
-        }))
+        config_file.write_text(
+            yaml.dump(
+                {
+                    "base_model": "test/model",
+                    "data": str(data_file),
+                    "test_size": 200,  # data_file has 100 rows
+                }
+            )
+        )
 
         with pytest.raises(ValueError, match="test_size.*>= total rows"):
             build_config(
@@ -342,11 +376,15 @@ class TestBuildConfig:
     def test_batch_size_exceeds_train_rows(self, tmp_path, data_file):
         """Raises ValueError when batch_size > train_rows."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text(yaml.dump({
-            "base_model": "test/model",
-            "data": str(data_file),
-            "batch_size": 200,  # data_file has 100 rows
-        }))
+        config_file.write_text(
+            yaml.dump(
+                {
+                    "base_model": "test/model",
+                    "data": str(data_file),
+                    "batch_size": 200,  # data_file has 100 rows
+                }
+            )
+        )
 
         with pytest.raises(ValueError, match="train_rows.*< batch_size"):
             build_config(
@@ -405,26 +443,36 @@ class TestCheckForMultiturn:
     def test_single_turn_returns_false(self, tmp_path):
         """Single-turn conversations return False."""
         data_file = tmp_path / "train.jsonl"
-        data_file.write_text(json.dumps({
-            "messages": [
-                {"role": "user", "content": "Hello"},
-                {"role": "assistant", "content": "Hi there"}
-            ]
-        }) + "\n")
+        data_file.write_text(
+            json.dumps(
+                {
+                    "messages": [
+                        {"role": "user", "content": "Hello"},
+                        {"role": "assistant", "content": "Hi there"},
+                    ]
+                }
+            )
+            + "\n"
+        )
 
         assert _check_for_multiturn(data_file) is False
 
     def test_multi_turn_returns_true(self, tmp_path):
         """Multi-turn conversations return True."""
         data_file = tmp_path / "train.jsonl"
-        data_file.write_text(json.dumps({
-            "messages": [
-                {"role": "user", "content": "Hello"},
-                {"role": "assistant", "content": "Hi there"},
-                {"role": "user", "content": "How are you?"},
-                {"role": "assistant", "content": "I'm doing well!"}
-            ]
-        }) + "\n")
+        data_file.write_text(
+            json.dumps(
+                {
+                    "messages": [
+                        {"role": "user", "content": "Hello"},
+                        {"role": "assistant", "content": "Hi there"},
+                        {"role": "user", "content": "How are you?"},
+                        {"role": "assistant", "content": "I'm doing well!"},
+                    ]
+                }
+            )
+            + "\n"
+        )
 
         assert _check_for_multiturn(data_file) is True
 
@@ -432,16 +480,24 @@ class TestCheckForMultiturn:
         """Mixed single and multi-turn returns True."""
         data_file = tmp_path / "train.jsonl"
         lines = [
-            json.dumps({"messages": [
-                {"role": "user", "content": "Hello"},
-                {"role": "assistant", "content": "Hi"}
-            ]}),
-            json.dumps({"messages": [
-                {"role": "user", "content": "One"},
-                {"role": "assistant", "content": "Two"},
-                {"role": "user", "content": "Three"},
-                {"role": "assistant", "content": "Four"}
-            ]})
+            json.dumps(
+                {
+                    "messages": [
+                        {"role": "user", "content": "Hello"},
+                        {"role": "assistant", "content": "Hi"},
+                    ]
+                }
+            ),
+            json.dumps(
+                {
+                    "messages": [
+                        {"role": "user", "content": "One"},
+                        {"role": "assistant", "content": "Two"},
+                        {"role": "user", "content": "Three"},
+                        {"role": "assistant", "content": "Four"},
+                    ]
+                }
+            ),
         ]
         data_file.write_text("\n".join(lines) + "\n")
 
@@ -452,10 +508,14 @@ class TestCheckForMultiturn:
         data_file = tmp_path / "train.jsonl"
         lines = [
             "not valid json",
-            json.dumps({"messages": [
-                {"role": "user", "content": "Hello"},
-                {"role": "assistant", "content": "Hi"}
-            ]})
+            json.dumps(
+                {
+                    "messages": [
+                        {"role": "user", "content": "Hello"},
+                        {"role": "assistant", "content": "Hi"},
+                    ]
+                }
+            ),
         ]
         data_file.write_text("\n".join(lines) + "\n")
 

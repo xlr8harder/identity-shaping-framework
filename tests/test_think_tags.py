@@ -1,7 +1,10 @@
 """Tests for shaping.data.think_tags module."""
 
-import pytest
-from shaping.data.think_tags import validate_think_tags, strip_thinking, extract_thinking
+from shaping.data.think_tags import (
+    validate_think_tags,
+    strip_thinking,
+    extract_thinking,
+)
 
 
 class TestValidateThinkTags:
@@ -15,13 +18,17 @@ class TestValidateThinkTags:
 
     def test_matched_pair_valid(self):
         """Properly matched <think>...</think> pair is valid."""
-        is_valid, error = validate_think_tags("<think>reasoning here</think>final response")
+        is_valid, error = validate_think_tags(
+            "<think>reasoning here</think>final response"
+        )
         assert is_valid
         assert error is None
 
     def test_unclosed_tag_invalid(self):
         """Unclosed <think> tag is invalid (model got stuck in reasoning)."""
-        is_valid, error = validate_think_tags("<think>stuck in reasoning loop forever...")
+        is_valid, error = validate_think_tags(
+            "<think>stuck in reasoning loop forever..."
+        )
         assert not is_valid
         assert error == "unclosed_think_tag"
 
@@ -65,7 +72,9 @@ class TestStripThinking:
 
     def test_strips_orphaned_close(self):
         """Strips content before </think> when <think> was in prompt."""
-        result = strip_thinking("reasoning that started in prompt</think>final response")
+        result = strip_thinking(
+            "reasoning that started in prompt</think>final response"
+        )
         assert result == "final response"
 
     def test_strips_multiline_thinking(self):
@@ -76,7 +85,9 @@ class TestStripThinking:
 
     def test_preserves_content_after_block(self):
         """Preserves all content after thinking block."""
-        result = strip_thinking("<think>x</think>This is the full response with details.")
+        result = strip_thinking(
+            "<think>x</think>This is the full response with details."
+        )
         assert result == "This is the full response with details."
 
 
@@ -97,7 +108,9 @@ class TestExtractThinking:
 
     def test_strips_whitespace(self):
         """Strips whitespace from extracted parts."""
-        thinking, response = extract_thinking("<think>  padded  </think>  also padded  ")
+        thinking, response = extract_thinking(
+            "<think>  padded  </think>  also padded  "
+        )
         assert thinking == "padded"
         assert response == "also padded"
 

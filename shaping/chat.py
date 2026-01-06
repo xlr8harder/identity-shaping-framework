@@ -4,6 +4,7 @@ Simple chat UI that uses the project's mq registry for model configuration.
 """
 
 import os
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import re
@@ -57,28 +58,32 @@ button[aria-label="Share"] {
 
 def format_think_tags(content: str) -> str:
     """Format <think>...</think> blocks as collapsible details elements."""
+
     def replace_think(match):
         think_content = match.group(1).strip()
-        think_content = (think_content
-            .replace("&", "&amp;")
+        think_content = (
+            think_content.replace("&", "&amp;")
             .replace("<", "&lt;")
-            .replace(">", "&gt;"))
-        return f'''<details class="think-block">
+            .replace(">", "&gt;")
+        )
+        return f"""<details class="think-block">
 <summary>Thinking...</summary>
 <div class="think-content">{think_content}</div>
-</details>'''
+</details>"""
 
-    pattern = r'<think>(.*?)</think>'
+    pattern = r"<think>(.*?)</think>"
     return re.sub(pattern, replace_think, content, flags=re.DOTALL)
 
 
 def strip_think_formatting(content: str) -> str:
     """Remove HTML formatting, restore raw <think> tags."""
     pattern = r'<details class="think-block"[^>]*>\s*<summary>[^<]*</summary>\s*<div class="think-content">(.*?)</div>\s*</details>'
+
     def restore(m):
         text = m.group(1)
         text = text.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
         return f"<think>{text}</think>"
+
     return re.sub(pattern, restore, content, flags=re.DOTALL)
 
 
@@ -112,7 +117,9 @@ class Chat:
         return response
 
 
-def create_app(model: str, title: Optional[str] = None, temperature: float = 0.7) -> gr.Blocks:
+def create_app(
+    model: str, title: Optional[str] = None, temperature: float = 0.7
+) -> gr.Blocks:
     """Create the Gradio chat app."""
     chat = Chat(model, temperature=temperature)
     display_title = title or f"Chat: {model}"

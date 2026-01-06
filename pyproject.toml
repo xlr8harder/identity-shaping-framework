@@ -56,6 +56,11 @@ isf = "shaping.cli:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[dependency-groups]
+dev = [
+    "ruff>=0.14.10",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["shaping"]
 

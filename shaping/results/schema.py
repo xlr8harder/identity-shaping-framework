@@ -19,6 +19,7 @@ from ..training.config import TrainConfig
 # Model Specifications (discriminated union by 'mode')
 # =============================================================================
 
+
 class BaseModelSpec(BaseModel):
     """Base model on a provider (no fine-tuning, no sysprompt)."""
 
@@ -80,6 +81,7 @@ ModelSpec = Annotated[
 # Supporting Types
 # =============================================================================
 
+
 class EvalConfig(BaseModel):
     """Eval configuration with reproducibility info."""
 
@@ -128,6 +130,7 @@ class Artifacts(BaseModel):
 # =============================================================================
 # Main Record
 # =============================================================================
+
 
 class EvalResult(BaseModel):
     """Complete eval result record.

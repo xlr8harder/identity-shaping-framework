@@ -53,9 +53,7 @@ class TestClientConsistency:
         required_params = ["temperature", "max_tokens"]
 
         for param in required_params:
-            assert param in llm_sig.parameters, (
-                f"LLMClient missing {param} parameter"
-            )
+            assert param in llm_sig.parameters, f"LLMClient missing {param} parameter"
             assert param in tinker_sig.parameters, (
                 f"TinkerClient missing {param} parameter"
             )

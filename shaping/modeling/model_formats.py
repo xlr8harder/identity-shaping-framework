@@ -23,20 +23,23 @@ Example usage:
 """
 
 from dataclasses import dataclass
-from typing import Optional, Callable, Any
+from typing import Optional, Any
 from enum import Enum
+
 
 # Lazy imports to avoid circular dependencies
 def _get_tinker_cookbook():
     from tinker_cookbook import renderers, model_info
     from tinker_cookbook.tokenizer_utils import get_tokenizer
+
     return renderers, model_info, get_tokenizer
 
 
 class ThinkingMode(Enum):
     """Whether the model supports thinking/reasoning traces."""
-    NONE = "none"           # Model doesn't support thinking
-    EMBEDDED = "embedded"   # Thinking embedded as <think>...</think> in content
+
+    NONE = "none"  # Model doesn't support thinking
+    EMBEDDED = "embedded"  # Thinking embedded as <think>...</think> in content
     STRUCTURED = "structured"  # Thinking in separate field (e.g., reasoning_content)
 
 
@@ -53,6 +56,7 @@ class ModelFormat:
         hf_thinking_param: Value for 'thinking' param in HF template (True/False/None)
         notes: Human-readable notes about this format
     """
+
     model_pattern: str
     thinking_mode: ThinkingMode
     training_renderer: str
@@ -120,9 +124,8 @@ MODEL_FORMATS: list[ModelFormat] = [
         use_hf_for_inference=True,  # HF template prefills <think> for consistency
         hf_thinking_param=True,
         notes="DeepSeek V3.1 thinking mode. HF template strips historical thinking "
-              "and prefills <think> for new generation.",
+        "and prefills <think> for new generation.",
     ),
-
     # DeepSeek V3.1 non-thinking mode
     ModelFormat(
         model_pattern="deepseek-v3",  # Same pattern, selected by explicit request
@@ -133,7 +136,6 @@ MODEL_FORMATS: list[ModelFormat] = [
         hf_thinking_param=False,
         notes="DeepSeek V3.1 non-thinking mode. Prefills </think> to skip reasoning.",
     ),
-
     # Qwen3 (thinking model)
     ModelFormat(
         model_pattern="qwen3",
@@ -143,7 +145,6 @@ MODEL_FORMATS: list[ModelFormat] = [
         use_hf_for_inference=False,  # Tinker renderer matches HF for Qwen3
         notes="Qwen3 with embedded thinking. Tinker renderer matches HF template.",
     ),
-
     # Kimi K2 (structured thinking)
     ModelFormat(
         model_pattern="kimi",
