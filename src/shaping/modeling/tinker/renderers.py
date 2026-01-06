@@ -53,7 +53,8 @@ class DeepSeekV3:
     _behavior_cache: ClassVar[dict[str, dict[str, bool]]] = {}
 
     # Expected behaviors - update these when upstream changes are validated
-    EXPECTED_UPSTREAM_PREFILLS_THINK = False  # tinker-cookbook doesn't prefill <think>
+    # tinker-cookbook now prefills <think> (as of upstream sync 2025-01)
+    EXPECTED_UPSTREAM_PREFILLS_THINK = True
 
     def __init__(self, tokenizer: Tokenizer):
         """Initialize renderer wrapper.

@@ -491,14 +491,11 @@ class TestRendererHFTemplateConsistency:
             f"Renderer (deepseekv3): {repr(renderer_prompt)}"
         )
 
-    def test_deepseek_v3_thinking_mode_difference(self, deepseek_v3_setup):
-        """Document that DeepSeek V3.1 thinking renderer differs from HF.
+    def test_deepseek_v3_thinking_mode_matches_hf(self, deepseek_v3_setup):
+        """DeepSeek V3.1 thinking renderer now matches HF.
 
-        IMPORTANT: tinker_cookbook's deepseekv3_thinking renderer does NOT add
-        <think> prefix, while HF's thinking=True does. This is intentional -
-        the model learns to generate <think> itself during training.
-
-        This test documents the difference rather than asserting equality.
+        As of 2025-01 upstream sync, tinker_cookbook's deepseekv3_thinking renderer
+        now adds <think> prefix, matching HF's thinking=True behavior.
         """
         thinking_renderer, non_thinking_renderer, tokenizer, hf_tokenizer = (
             deepseek_v3_setup
@@ -514,7 +511,7 @@ class TestRendererHFTemplateConsistency:
             messages, tokenize=False, add_generation_prompt=True, thinking=True
         )
 
-        # Thinking renderer (does NOT add <think> prefix)
+        # Thinking renderer (now also adds <think> prefix)
         renderer_msgs = [
             renderers.Message(role=m["role"], content=m["content"]) for m in messages
         ]
@@ -525,18 +522,15 @@ class TestRendererHFTemplateConsistency:
             all_tokens.extend(chunk.tokens)
         renderer_prompt = tokenizer.decode(all_tokens)
 
-        # Document the expected difference
+        # Both should end with <think>
         assert hf_prompt.endswith("<think>"), "HF thinking=True should end with <think>"
-        assert not renderer_prompt.endswith("<think>"), (
-            "Renderer should NOT add <think>"
-        )
-        assert renderer_prompt.endswith("<｜Assistant｜>"), (
-            "Renderer ends with Assistant token"
-        )
+        assert renderer_prompt.endswith(
+            "<think>"
+        ), "Renderer should now add <think> (matches HF)"
 
-        # The difference is exactly the <think> suffix
-        assert hf_prompt == renderer_prompt + "<think>", (
-            f"Unexpected difference between HF and renderer!\n"
+        # Tinker now matches HF exactly
+        assert hf_prompt == renderer_prompt, (
+            f"Tinker should match HF!\n"
             f"HF: {repr(hf_prompt)}\n"
             f"Renderer: {repr(renderer_prompt)}"
         )
@@ -576,8 +570,8 @@ class TestRendererHFTemplateConsistency:
         rendered = tokenizer.decode(all_tokens)
 
         # Historical thinking should be stripped
-        assert "Let me calculate" not in rendered, (
-            f"Historical thinking should be stripped!\nRendered: {repr(rendered)}"
-        )
+        assert (
+            "Let me calculate" not in rendered
+        ), f"Historical thinking should be stripped!\nRendered: {repr(rendered)}"
         # But the text response should remain
         assert "4" in rendered

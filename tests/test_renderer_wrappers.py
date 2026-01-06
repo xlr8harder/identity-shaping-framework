@@ -25,13 +25,13 @@ class TestDeepSeekV3BehaviorDetection:
         """Get tokenizer for DeepSeek V3.1."""
         return get_tokenizer("deepseek-ai/DeepSeek-V3.1")
 
-    def test_detects_upstream_no_prefill(self, deepseek_tokenizer):
-        """Detects that upstream renderer does not prefill <think>."""
+    def test_detects_upstream_prefills_think(self, deepseek_tokenizer):
+        """Detects that upstream renderer now prefills <think>."""
         wrapper = DeepSeekV3(deepseek_tokenizer)
 
-        # This should match the current expected behavior
-        assert wrapper._behavior["upstream_prefills_think"] is False
-        assert wrapper.EXPECTED_UPSTREAM_PREFILLS_THINK is False
+        # Upstream now prefills <think> (as of 2025-01 sync)
+        assert wrapper._behavior["upstream_prefills_think"] is True
+        assert wrapper.EXPECTED_UPSTREAM_PREFILLS_THINK is True
 
     def test_behavior_is_cached(self, deepseek_tokenizer):
         """Behavior detection is cached across instances."""
@@ -50,12 +50,13 @@ class TestDeepSeekV3BehaviorDetection:
         DeepSeekV3._behavior_cache.clear()
 
         # Patch the constant to simulate expectation mismatch
-        with patch.object(DeepSeekV3, "EXPECTED_UPSTREAM_PREFILLS_THINK", True):
+        # (upstream now prefills, so patch to False to create mismatch)
+        with patch.object(DeepSeekV3, "EXPECTED_UPSTREAM_PREFILLS_THINK", False):
             with caplog.at_level(logging.WARNING):
-                wrapper = DeepSeekV3(deepseek_tokenizer)
+                DeepSeekV3(deepseek_tokenizer)  # noqa: F841 - instantiation triggers warning
 
             assert "upstream renderer behavior has changed" in caplog.text
-            assert "Expected prefills_think=True" in caplog.text
+            assert "Expected prefills_think=False" in caplog.text
 
 
 class TestDeepSeekV3InferencePrompt:
@@ -116,9 +117,9 @@ class TestDeepSeekV3InferencePrompt:
             all_tokens.extend(chunk.tokens)
         prompt_text = tokenizer.decode(all_tokens)
 
-        assert prompt_text.endswith("<think>"), (
-            f"Prompt should end with <think> but ends with: ...{prompt_text[-50:]}"
-        )
+        assert prompt_text.endswith(
+            "<think>"
+        ), f"Prompt should end with <think> but ends with: ...{prompt_text[-50:]}"
 
     def test_multi_turn_with_thinking_history(self, deepseek_setup):
         """Multi-turn conversation strips thinking from history.

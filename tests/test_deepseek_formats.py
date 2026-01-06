@@ -65,9 +65,9 @@ class TestDeepSeekHFReference:
         )
 
         # Must end with </think> to skip thinking
-        assert result.endswith("</think>"), (
-            f"Non-thinking mode must end with </think>.\nGot: {repr(result)}"
-        )
+        assert result.endswith(
+            "</think>"
+        ), f"Non-thinking mode must end with </think>.\nGot: {repr(result)}"
 
     def test_historical_thinking_is_stripped(self, hf_tokenizer):
         """Historical assistant messages have thinking STRIPPED.
@@ -89,9 +89,9 @@ class TestDeepSeekHFReference:
         )
 
         # Historical thinking should be stripped
-        assert "Let me calculate" not in result, (
-            f"Historical thinking should be stripped!\nGot: {repr(result)}"
-        )
+        assert (
+            "Let me calculate" not in result
+        ), f"Historical thinking should be stripped!\nGot: {repr(result)}"
 
         # Response should remain
         assert "The answer is 4." in result
@@ -127,9 +127,9 @@ class TestDeepSeekHFReference:
         ]
 
         for part in expected_parts:
-            assert part in result, (
-                f"Missing expected part: {repr(part)}\nFull result: {repr(result)}"
-            )
+            assert (
+                part in result
+            ), f"Missing expected part: {repr(part)}\nFull result: {repr(result)}"
 
     def test_input_format_with_think_tags(self, hf_tokenizer):
         """Document: you SHOULD pass <think>...</think> in assistant content.
@@ -191,9 +191,9 @@ class TestTinkerTrainingFormat:
         decoded = tokenizer.decode(all_tokens)
 
         # Thinking is PRESERVED for training
-        assert "<think>Calculate: 2+2=4</think>" in decoded, (
-            f"Training format must preserve thinking!\nGot: {repr(decoded)}"
-        )
+        assert (
+            "<think>Calculate: 2+2=4</think>" in decoded
+        ), f"Training format must preserve thinking!\nGot: {repr(decoded)}"
         assert "The answer is 4." in decoded
 
     def test_training_full_format(self, thinking_renderer, tokenizer):
@@ -221,13 +221,11 @@ class TestTinkerTrainingFormat:
             f"Got: {repr(decoded)}"
         )
 
-    def test_generation_prompt_no_think_prefix(self, thinking_renderer, tokenizer):
-        """Tinker generation prompt does NOT prefill <think>.
+    def test_generation_prompt_think_prefix(self, thinking_renderer, tokenizer):
+        """Tinker generation prompt now prefills <think>.
 
-        This differs from HF reference! The model generates <think> itself.
-        This may cause inconsistent thinking behavior during inference.
-
-        For inference, prefer HF template with thinking=True.
+        As of 2025-01 upstream sync, tinker-cookbook matches HF behavior
+        and prefills <think> for thinking mode generation.
         """
         msgs = [
             renderers.Message(role="user", content="What is 2+2?"),
@@ -240,13 +238,10 @@ class TestTinkerTrainingFormat:
             all_tokens.extend(chunk.tokens)
         decoded = tokenizer.decode(all_tokens)
 
-        # Tinker does NOT add <think> prefix
-        assert decoded.endswith("<｜Assistant｜>"), (
-            f"Tinker generation prompt ends at Assistant token.\nGot: {repr(decoded)}"
-        )
-        assert not decoded.endswith("<think>"), (
-            "Tinker does NOT prefill <think> - differs from HF reference!"
-        )
+        # Tinker now prefills <think> (matches HF thinking=True)
+        assert decoded.endswith(
+            "<think>"
+        ), f"Tinker generation prompt should end with <think>.\nGot: {repr(decoded)}"
 
     def test_strip_thinking_from_history_option(self, tokenizer):
         """Tinker renderer has strip_thinking_from_history option.
@@ -341,9 +336,9 @@ class TestFormatCompatibility:
         decoded = tinker_tokenizer.decode(all_tokens)
 
         # Training sequence has <｜Assistant｜><think>
-        assert "<｜Assistant｜><think>" in decoded, (
-            "Model learns: after Assistant token, generate <think>"
-        )
+        assert (
+            "<｜Assistant｜><think>" in decoded
+        ), "Model learns: after Assistant token, generate <think>"
 
     def test_inference_prefill_matches_training(self, hf_tokenizer):
         """HF inference prefill (<think>) matches what training teaches.
