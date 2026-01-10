@@ -127,7 +127,7 @@ class PromptsConfig:
 
         # Registry path
         registry_path = project_dir / prompts_config.get(
-            "registry_path", "config/registry.json"
+            "registry_path", "registry.json"
         )
 
         # Variants to build - can be list or dict format

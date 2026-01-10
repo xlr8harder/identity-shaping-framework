@@ -9,6 +9,7 @@ Also handles checkpoint resolution for tinker models:
 - e027-final → (base_model, renderer, checkpoint_path)
 """
 
+import copy
 import json
 import os
 from pathlib import Path
@@ -35,7 +36,7 @@ class ISFConfig:
         Args:
             config_path: Path to isf.yaml. If None, searches up from cwd.
         """
-        self._config = DEFAULT_CONFIG.copy()
+        self._config = copy.deepcopy(DEFAULT_CONFIG)
 
         # Find config file
         if config_path is None:
