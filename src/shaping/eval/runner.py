@@ -274,13 +274,11 @@ class EvalRunner:
     async def _create_judge_client(self, model: str, temperature: float | None):
         """Create judge client."""
         from ..modeling import LLMClient
-        from ..config import resolve_model
 
-        resolved = resolve_model(model)
         kwargs = {}
         if temperature is not None:
             kwargs["temperature"] = temperature
-        return LLMClient(resolved, **kwargs)
+        return LLMClient(model, **kwargs)
 
     async def _run_concurrent(
         self,

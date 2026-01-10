@@ -2,7 +2,7 @@
 
 A reusable toolkit for AI identity shaping projects. Provides:
 
-- shaping.config: Model resolution and ISF configuration
+- shaping.config: Checkpoint resolution for tinker models
 - shaping.eval: Evaluation infrastructure (rubrics, parsing, judging)
 - shaping.data: Training data utilities (think tags, formatting)
 - shaping.modeling: Model clients, backends, and renderers
@@ -11,8 +11,8 @@ Quick start with clients:
     from shaping.modeling import LLMClient
     from shaping.modeling.tinker import TinkerClient
 
-    # API-based model
-    client = LLMClient("aria-v0.9-full")
+    # API-based model (use registry shortname directly)
+    client = LLMClient("cubsfan-release-full")
     response = client.query([{"role": "user", "content": "Hello!"}])
 
     # Tinker checkpoint
@@ -25,7 +25,7 @@ Quick start with backends (for dispatcher):
 
     backend = RegistryBackend()
     response = backend.process(Request({
-        "_model": "isf.identity.full",
+        "_model": "cubsfan-release-full",
         "messages": [{"role": "user", "content": "Hello!"}]
     }))
 """
@@ -34,8 +34,5 @@ __version__ = "0.1.0"
 
 # Convenient imports - explicit re-exports
 from .config import (
-    resolve_model as resolve_model,
     resolve_checkpoint as resolve_checkpoint,
-    ISFConfig as ISFConfig,
-    get_config as get_config,
 )

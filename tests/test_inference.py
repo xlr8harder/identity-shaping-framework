@@ -290,41 +290,7 @@ class TestTinkerBackendSysprompt:
 
 
 class TestConfigResolution:
-    """Test config.py model and checkpoint resolution."""
-
-    def test_resolve_model_passthrough(self):
-        """Non-isf model refs pass through unchanged."""
-        from shaping.config import resolve_model
-
-        result = resolve_model("aria-v0.9-full")
-        assert result == "aria-v0.9-full"
-
-        result = resolve_model("gpt-4o-mini")
-        assert result == "gpt-4o-mini"
-
-    def test_resolve_model_identity(self):
-        """isf.identity.* resolves to {prefix}-{tier}-{variant}."""
-        from shaping.config import ISFConfig
-
-        # With default config (no isf.yaml)
-        config = ISFConfig()
-
-        result = config.resolve_model("isf.identity.full")
-        assert result == "identity-dev-full"
-
-    def test_resolve_model_plain_model(self):
-        """isf.{model}.* resolves to plain model name from models section."""
-        from shaping.config import ISFConfig
-
-        # Create config with a judge model defined
-        config = ISFConfig()
-        config._config["models"]["judge"] = {
-            "provider": "openrouter",
-            "model": "gpt-4o-mini",
-        }
-
-        result = config.resolve_model("isf.judge.default")
-        assert result == "judge"
+    """Test config.py checkpoint resolution."""
 
     def test_resolve_checkpoint_explicit_format(self):
         """Explicit format: model::renderer or model::renderer::path."""

@@ -33,7 +33,7 @@ def model_request(
 
     Args:
         messages: Chat messages in OpenAI format
-        model: Optional model reference (e.g., "isf.identity.full", "aria-v0.9-full").
+        model: Optional registry shortname (e.g., "cubsfan-release-full", "judge").
             Required when using RegistryBackend (multi-model mode).
         step_id: Optional identifier for this inference step (for provenance tracking).
             If not provided, steps are numbered automatically.
@@ -47,8 +47,8 @@ def model_request(
         response = yield model_request(messages, temperature=0.7)
 
         # Multi-model pipeline (model in each request)
-        response = yield model_request(messages, model="isf.identity.full")
-        judge_resp = yield model_request(judge_msgs, model="isf.judge.small")
+        response = yield model_request(messages, model="cubsfan-release-full")
+        judge_resp = yield model_request(judge_msgs, model="judge")
 
         # With step IDs for provenance
         response = yield model_request(messages, model="...", step_id="generate")
@@ -95,7 +95,7 @@ class TrackedTask(GeneratorTask):
                     ...
 
             def process_record(self):
-                resp = yield model_request(msgs, model="isf.identity.full")
+                resp = yield model_request(msgs, model="cubsfan-release-full")
                 return TrainingSample(
                     id=self.data["id"],
                     messages=msgs + [{"role": "assistant", "content": resp.get_text()}],

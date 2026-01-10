@@ -135,7 +135,7 @@ class LLMJudge(Judge):
     """
 
     rubric: str
-    judge_model: str = "isf.judge"
+    judge_model: str = "judge"
     score_field: str = "score"
     max_score: int = 5
     output_format: str | None = None

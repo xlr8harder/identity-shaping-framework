@@ -18,7 +18,7 @@ class InferenceStep:
 
     # Input
     messages: list[dict]
-    model: str | None  # model reference (e.g., "isf.identity.full")
+    model: str | None  # registry shortname (e.g., "cubsfan-release-full")
     model_resolved: str | None  # actual model name from backend
     sampling: dict  # temperature, max_tokens, etc.
 

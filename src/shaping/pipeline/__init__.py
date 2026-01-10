@@ -25,11 +25,11 @@ Example (multi-model with provenance tracking):
             messages = self.data["messages"]
 
             # Generate response from identity model
-            resp = yield model_request(messages, model="isf.identity.full")
+            resp = yield model_request(messages, model="cubsfan-release-full")
 
             # Judge the response
             judge_msgs = [{"role": "user", "content": f"Rate this: {resp.get_text()}"}]
-            judge_resp = yield model_request(judge_msgs, model="isf.judge.small")
+            judge_resp = yield model_request(judge_msgs, model="judge")
 
             return {"response": resp.get_text(), "judgment": judge_resp.get_text()}
 

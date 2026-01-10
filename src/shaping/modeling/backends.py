@@ -16,7 +16,6 @@ from dispatcher.taskmanager.backend.request import Request, Response
 
 from mq import store as mq_store
 
-from ..config import resolve_model
 from ..data.think_tags import strip_thinking
 from .clients import LLMClient
 from .defaults import DEFAULT_TEMPERATURE, DEFAULT_MAX_TOKENS
@@ -193,21 +192,19 @@ LLMCLIENT_PROVIDERS = {"openrouter", "chutes", "openai", "anthropic"}
 class RegistryBackend(BackendManager):
     """Routes requests to backends based on _model field.
 
-    Inspects the _model field in each request, resolves it to an mq registry
-    shortname, looks up the provider, and routes to the appropriate backend.
+    Inspects the _model field in each request, looks up the provider in
+    the mq registry, and routes to the appropriate backend.
 
     This enables multi-model pipelines where different steps use different models:
 
         def my_task():
             # First call uses identity model
-            yield Request({"_model": "isf.identity.full", "messages": [...]})
+            yield Request({"_model": "cubsfan-release-full", "messages": [...]})
 
             # Second call uses judge model
-            yield Request({"_model": "isf.judge.small", "messages": [...]})
+            yield Request({"_model": "judge", "messages": [...]})
 
-    Model references can be:
-    - ISF abstractions: "isf.identity.full", "isf.judge.small"
-    - Registry shortnames: "aria-v0.9-full", "gpt-4o-mini"
+    Use registry shortnames directly (e.g., "cubsfan-release-full", "judge").
     """
 
     def __init__(self, max_retries: int = 5):
@@ -260,13 +257,12 @@ class RegistryBackend(BackendManager):
         """
         content = dict(request.content)  # Don't mutate original
 
-        # Extract and resolve model reference
+        # Extract model reference
         model_ref = content.pop("_model", None)
         if model_ref is None:
             raise ValueError("Request missing required '_model' field")
 
-        shortname = resolve_model(model_ref)
-        backend = self._get_backend(shortname)
+        backend = self._get_backend(model_ref)
 
         # Create new request without _model field
         clean_request = Request(content)

@@ -344,12 +344,18 @@ def build_registry(config: PromptsConfig) -> Path:
             variant = sysprompt_path.stem  # full, medium, etc.
             model_name = f"{config.model_prefix}-{version}-{variant}"
 
-            models[model_name] = {
+            model_entry = {
                 "provider": config.identity_provider,
                 "model": config.identity_model,
                 "params": {"temperature": config.identity_temperature},
                 "sysprompt": sysprompt_path.read_text(),
             }
+            models[model_name] = model_entry
+
+            # Add release alias if this is the release version
+            if version == config.release_version:
+                release_name = f"{config.model_prefix}-release-{variant}"
+                models[release_name] = model_entry
 
     # Write registry
     registry = {

@@ -1,17 +1,11 @@
-"""ISF configuration and model resolution.
+"""ISF configuration.
 
-Handles isf.yaml loading and model name resolution:
-- isf.identity.full → aria-v0.9-full (via convention)
-- isf.judge.small → gpt-4o-mini (via explicit mapping)
-- aria-v0.9-full → passthrough to mq registry
-
-Also handles checkpoint resolution for tinker models:
+Handles isf.yaml loading and checkpoint resolution for tinker models:
 - e027-final → (base_model, renderer, checkpoint_path)
 """
 
 import copy
 import json
-import os
 from pathlib import Path
 from typing import Optional
 import yaml
@@ -48,9 +42,6 @@ class ISFConfig:
                 if user_config:
                     self._merge_config(user_config)
 
-        # Identity tier override from environment
-        self._identity_tier = os.environ.get("ISF_IDENTITY_TIER", "release")
-
     @staticmethod
     def _find_config() -> Optional[Path]:
         """Search for isf.yaml in current directory and parents."""
@@ -69,70 +60,6 @@ class ISFConfig:
                 self._config[key].update(value)
             else:
                 self._config[key] = value
-
-    def set_identity_tier(self, tier: str):
-        """Override identity tier (release, dev, v0.8, etc.)."""
-        self._identity_tier = tier
-
-    def resolve_model(self, model_ref: str) -> str:
-        """Resolve a model reference to an mq registry shortname.
-
-        Args:
-            model_ref: Model reference, one of:
-                - "isf.identity.full" → convention-based resolution
-                - "isf.judge.small" → explicit mapping
-                - "aria-v0.9-full" → passthrough
-
-        Returns:
-            mq registry shortname
-        """
-        if not model_ref.startswith("isf."):
-            # Passthrough - assume it's already a registry shortname
-            return model_ref
-
-        parts = model_ref.split(".")
-        if len(parts) != 3:
-            raise ValueError(f"Invalid model reference: {model_ref}")
-
-        _, category, variant = parts
-
-        if category == "identity":
-            # Convention-based: {prefix}-{tier}-{variant}
-            identity_config = self._config.get("identity", {})
-            prefix = identity_config.get("prefix", "identity")
-            tier = self._identity_tier
-
-            # "release" tier uses release_version
-            if tier == "release":
-                tier = identity_config.get("release_version", "dev")
-
-            return f"{prefix}-{tier}-{variant}"
-
-        else:
-            # Look up in plain models section
-            models = self._config.get("models", {})
-            if category in models:
-                # Return the model name directly (e.g., isf.judge → judge)
-                return category
-            raise ValueError(f"Unknown model category: {model_ref}")
-
-
-# Global config instance (lazy loaded)
-_config: Optional[ISFConfig] = None
-
-
-def get_config() -> ISFConfig:
-    """Get the global config instance."""
-    global _config
-    if _config is None:
-        # Try to find isf.yaml in current directory or parents
-        _config = ISFConfig()
-    return _config
-
-
-def resolve_model(model_ref: str) -> str:
-    """Convenience function to resolve a model reference."""
-    return get_config().resolve_model(model_ref)
 
 
 # =============================================================================

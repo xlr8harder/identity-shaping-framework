@@ -235,11 +235,21 @@ def list_versions(ctx: ProjectContext):
                 click.echo(f"    {model}")
         click.echo()
 
-        # Show aliases
-        release = config_info["release_version"]
+        # Show release aliases for all variants
         prefix = config_info["model_prefix"]
-        click.echo("Model aliases (isf.yaml):")
-        click.echo(f"  isf.identity.full → {prefix}-{release}-full")
+        release_version = config_info["release_version"]
+        # Find variants from the release version
+        release_variants = []
+        for v in versions:
+            if v["is_release"]:
+                release_variants = v["variants"]
+                break
+        if release_variants:
+            click.echo("Release aliases:")
+            for variant in release_variants:
+                click.echo(
+                    f"  {prefix}-release-{variant} → {prefix}-{release_version}-{variant}"
+                )
 
     except FileNotFoundError as e:
         raise click.ClickException(str(e))
