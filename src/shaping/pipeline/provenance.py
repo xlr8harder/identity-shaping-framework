@@ -114,7 +114,18 @@ class AnnotatedTrainingSample(TrainingSample):
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "AnnotatedTrainingSample":
-        """Deserialize from dict."""
+        """Deserialize from dict.
+
+        Raises:
+            ValueError: If data is an error record (has __ERROR__ key)
+        """
+        if "__ERROR__" in data:
+            error_info = data["__ERROR__"]
+            raise ValueError(
+                f"Cannot parse error record: {error_info.get('error', 'unknown')} - "
+                f"{error_info.get('message', 'no message')}"
+            )
+
         steps = [
             InferenceStep(
                 messages=s["messages"],

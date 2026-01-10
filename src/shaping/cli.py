@@ -18,7 +18,7 @@ from mq.cli import main as mq_main
 from . import prompts as prompts_module
 from .chat import run_chat
 from .eval import Eval, EvalRunner, MCParser
-from .pipeline import TrackedTask, run_pipeline
+from .pipeline import Pipeline
 from .results import EvalResult, ResultsStore, build_eval_result
 from .training import build_config, run_training
 
@@ -630,19 +630,34 @@ def pipeline():
     "--output", "-o", type=click.Path(path_type=Path), help="Override output path"
 )
 @click.option("--workers", "-w", type=int, help="Number of parallel workers")
+@click.option(
+    "--annotate/--no-annotate",
+    default=None,
+    help="Include full provenance (default) or strip to minimal training format",
+)
 @pass_context
 def pipeline_run(
-    ctx: ProjectContext, pipeline_name: str, limit: int, output: Path, workers: int
+    ctx: ProjectContext,
+    pipeline_name: str,
+    limit: int,
+    output: Path,
+    workers: int,
+    annotate: bool,
 ):
     """Run a pipeline by name.
 
-    PIPELINE_NAME should match a TrackedTask subclass with that name
+    PIPELINE_NAME should match a Pipeline subclass with that name
     in the pipelines/ directory.
+
+    By default, outputs AnnotatedTrainingSample with full provenance
+    (input data, inference steps, timestamps). Use --no-annotate for
+    training-ready output with just id and messages.
 
     Examples:
         isf pipeline run wildchat-training
         isf pipeline run wildchat-training --limit 10
         isf pipeline run wildchat-training -n 10 -o test.jsonl
+        isf pipeline run wildchat-training --no-annotate  # Training format
     """
     # Set up mq with project registry
     if not ctx.setup_mq():
@@ -663,18 +678,15 @@ def pipeline_run(
             raise click.ClickException(
                 f"Unknown pipeline: {pipeline_name}\n\n"
                 f"No pipelines found. Create Python files in {ctx.project_dir}/pipelines/ "
-                f"with TrackedTask subclasses that have a 'name' attribute."
+                f"with Pipeline subclasses that have a 'name' attribute."
             )
 
     # Run the pipeline
-
     try:
-        run_pipeline(
-            pipeline_def,
-            limit=limit,
-            output_file=output,
-            num_workers=workers,
-        )
+        instance = pipeline_def()
+        if workers is not None:
+            instance.default_workers = workers
+        instance.execute(limit=limit, output_file=output, annotated=annotate)
     except Exception as e:
         raise click.ClickException(str(e))
 
@@ -689,20 +701,80 @@ def pipeline_list(ctx: ProjectContext):
         click.echo(f"Pipelines ({ctx.project_dir}/pipelines/):")
         for name, info in sorted(pipelines.items()):
             source = info.get("source", "")
-            workers = info.get("default_workers", 4)
+            workers = info.get("default_workers", 10)
             click.echo(f"  {name}: {source} (workers: {workers})")
     else:
         click.echo("No pipelines found.")
         click.echo(
             f"\nTo add pipelines, create Python files in {ctx.project_dir}/pipelines/"
         )
-        click.echo("with TrackedTask subclasses that have a 'name' attribute.")
+        click.echo("with Pipeline subclasses that have a 'name' attribute.")
+
+
+@pipeline.command("status")
+@pass_context
+def pipeline_status(ctx: ProjectContext):
+    """Check pipeline staleness.
+
+    Shows whether each pipeline's output is up-to-date with its dependencies.
+
+    Example:
+        isf pipeline status
+
+        identity-augmentation: STALE
+          - Pipeline code changed
+          - File 'narrative_doc' content changed
+
+        wildchat-training: CURRENT (1000 samples)
+
+        test-pipeline: PARTIAL (10 samples)
+          - Partial run (10 samples, run without --limit for full data)
+    """
+    # Set up mq with project registry (needed for model dep sysprompt lookups)
+    ctx.setup_mq()
+
+    pipelines = _discover_pipelines(ctx.project_dir)
+
+    if not pipelines:
+        click.echo("No pipelines found.")
+        click.echo(
+            f"\nTo add pipelines, create Python files in {ctx.project_dir}/pipelines/"
+        )
+        return
+
+    for name, info in sorted(pipelines.items()):
+        pipeline_class = info["class"]
+
+        try:
+            staleness = pipeline_class.check_staleness()
+            record_count = staleness.get("record_count", 0)
+            is_partial = staleness.get("partial", False)
+
+            if staleness["stale"]:
+                # Show PARTIAL for partial-only staleness, STALE for other issues
+                if is_partial and len(staleness["reasons"]) == 1:
+                    click.echo(f"{name}: PARTIAL ({record_count} samples)")
+                else:
+                    click.echo(f"{name}: STALE")
+                for reason in staleness["reasons"]:
+                    click.echo(f"  - {reason}")
+            else:
+                count_str = f" ({record_count} samples)" if record_count else ""
+                click.echo(f"{name}: CURRENT{count_str}")
+
+        except Exception as e:
+            click.echo(f"{name}: ERROR ({e})")
+
+        click.echo()
 
 
 def _discover_pipelines(project_dir: Path) -> dict:
-    """Discover pipeline classes in project's pipelines/ directory.
+    """Discover Pipeline subclasses in project's pipelines/ directory.
 
-    Returns dict mapping pipeline name to {"source": "module:class", "class": TaskClass}
+    Returns dict mapping pipeline name to:
+        - "source": "module:class"
+        - "class": the Pipeline subclass
+        - "default_workers": int
     """
 
     pipelines_dir = project_dir / "pipelines"
@@ -727,21 +799,22 @@ def _discover_pipelines(project_dir: Path) -> dict:
             sys.modules[module_name] = module  # Register before exec for proper imports
             spec.loader.exec_module(module)
 
-            # Find all TrackedTask subclasses with a name
+            # Find all Pipeline subclasses with a name
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
+
                 if (
                     isinstance(attr, type)
-                    and issubclass(attr, TrackedTask)
-                    and attr is not TrackedTask
+                    and issubclass(attr, Pipeline)
+                    and attr is not Pipeline
                     and hasattr(attr, "name")
                     and attr.name
-                ):  # Must have a name
+                ):
                     pipeline_name = attr.name
                     discovered[pipeline_name] = {
                         "source": f"{module_name}:{attr_name}",
                         "class": attr,
-                        "default_workers": getattr(attr, "default_workers", 4),
+                        "default_workers": getattr(attr, "default_workers", 10),
                     }
 
         except Exception as e:

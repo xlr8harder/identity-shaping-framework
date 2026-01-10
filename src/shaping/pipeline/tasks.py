@@ -6,11 +6,12 @@ Provides reusable GeneratorTask subclasses for typical inference patterns.
 import inspect
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Dict, Generator, List, Optional, Union
 
 from dispatcher.taskmanager.task.base import GeneratorTask
 from dispatcher.taskmanager.backend.request import Request, Response
 
+from .deps import ModelDep
 from .provenance import (
     InferenceStep,
     TrainingSample,
@@ -19,22 +20,52 @@ from .provenance import (
 )
 
 
+class PipelineError(Exception):
+    """Error that aborts processing for a record.
+
+    Raise this from process_record() to skip a record with a categorized error.
+    The error is recorded with full provenance (all inference steps up to the
+    failure point) for debugging.
+
+    Args:
+        message: Human-readable error description
+        error_type: Category for monitoring/filtering (default: "error")
+
+    Example:
+        def process_record(self):
+            response = yield model_request(...)
+            if not response.is_success:
+                raise PipelineError("API call failed", error_type="api_error")
+
+            result = parse(response.get_text())
+            if result is None:
+                raise PipelineError("Could not parse response", error_type="parse_error")
+
+            return TrainingSample(...)
+    """
+
+    def __init__(self, message: str, error_type: str = "error"):
+        self.message = message
+        self.error_type = error_type
+        super().__init__(message)
+
+
 # Sampling parameters to capture in provenance
 _SAMPLING_KEYS = ("temperature", "max_tokens", "top_p", "stop", "n")
 
 
 def model_request(
     messages: list[dict],
-    model: Optional[str] = None,
+    model: Union[ModelDep, str, None] = None,
     step_id: Optional[str] = None,
     **kwargs,
 ) -> Request:
-    """Create a request, optionally with a model for routing.
+    """Create a request with a model for routing.
 
     Args:
         messages: Chat messages in OpenAI format
-        model: Optional registry shortname (e.g., "cubsfan-release-full", "judge").
-            Required when using RegistryBackend (multi-model mode).
+        model: ModelDep declared on the pipeline class. The model must be declared
+            as a dependency to ensure proper staleness tracking.
         step_id: Optional identifier for this inference step (for provenance tracking).
             If not provided, steps are numbered automatically.
         **kwargs: Additional parameters (temperature, max_tokens, etc.)
@@ -43,20 +74,33 @@ def model_request(
         Request object ready to yield from a task generator
 
     Example:
-        # Single-model pipeline (model set at pipeline level)
-        response = yield model_request(messages, temperature=0.7)
+        class MyPipeline(Pipeline):
+            identity_model = Pipeline.model_dep("cubsfan-release-full")
+            judge_model = Pipeline.model_dep("judge")
 
-        # Multi-model pipeline (model in each request)
-        response = yield model_request(messages, model="cubsfan-release-full")
-        judge_resp = yield model_request(judge_msgs, model="judge")
-
-        # With step IDs for provenance
-        response = yield model_request(messages, model="...", step_id="generate")
-        judgment = yield model_request(judge_msgs, model="...", step_id="judge")
+            def generate_qa(self, record):
+                response = yield model_request(messages, model=self.identity_model)
+                judgment = yield model_request(judge_msgs, model=self.judge_model)
+                return TrainingSample(...)
     """
+    # Extract registry name from ModelDep
+    if isinstance(model, ModelDep):
+        model_name = model.registry_name
+    elif isinstance(model, str):
+        # Allow strings for backwards compatibility during migration
+        # TODO: Make this an error once all code is migrated
+        model_name = model
+    elif model is None:
+        model_name = None
+    else:
+        raise TypeError(
+            f"model must be a ModelDep, got {type(model).__name__}. "
+            "Declare it as a class attribute: identity_model = Pipeline.model_dep('...')"
+        )
+
     content = {"messages": messages, **kwargs}
-    if model is not None:
-        content["_model"] = model
+    if model_name is not None:
+        content["_model"] = model_name
     if step_id is not None:
         content["_step_id"] = step_id
     return Request(content)
@@ -140,7 +184,9 @@ class TrackedTask(GeneratorTask):
         pass
 
     def __init__(self, data: Dict[str, Any], context: Any = None):
-        super().__init__(data, context)
+        # Initialize tracking state BEFORE super().__init__() because
+        # the dispatcher immediately advances the generator, which may
+        # raise PipelineError and call _wrap_error() before we return.
         self._steps: List[InferenceStep] = []
         self._step_counter = 0
         self._started_at = datetime.now()
@@ -151,6 +197,8 @@ class TrackedTask(GeneratorTask):
             self._pipeline_file = inspect.getfile(self.__class__)
         except Exception:
             pass
+
+        super().__init__(data, context)
 
     def task_generator(self) -> Generator[Request, Response, Dict[str, Any]]:
         """Wraps process_record() to capture all inference steps."""
@@ -175,6 +223,11 @@ class TrackedTask(GeneratorTask):
 
             except StopIteration as e:
                 return self._wrap_output(e.value)
+            except PipelineError as e:
+                return self._wrap_error(e.error_type, e.message)
+            except Exception as e:
+                # Catch-all for unexpected errors - preserve steps for debugging
+                return self._wrap_error("unexpected_error", f"{type(e).__name__}: {e}")
 
     def process_record(self) -> Generator[Request, Response, TrainingSample]:
         """Override this method to process one record. Return a TrainingSample."""
@@ -217,6 +270,24 @@ class TrackedTask(GeneratorTask):
             completed_at=datetime.now(),
         )
         return annotated.to_dict()
+
+    def _wrap_error(self, error_type: str, message: str) -> Dict[str, Any]:
+        """Create error dict with full provenance for debugging.
+
+        Includes all inference steps captured before the error occurred.
+        """
+        return {
+            "__ERROR__": {
+                "error": error_type,
+                "message": message,
+                "input_data": self.data,
+                "steps": [step.to_dict() for step in self._steps],
+                "pipeline_commit": get_git_commit(),
+                "pipeline_file": self._pipeline_file,
+                "started_at": self._started_at.isoformat(),
+                "failed_at": datetime.now().isoformat(),
+            }
+        }
 
 
 class SingleTurnTask(GeneratorTask):

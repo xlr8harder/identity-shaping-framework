@@ -1,67 +1,82 @@
 """Pipeline execution utilities.
 
-Provides a simple interface for running inference pipelines using
-dispatcher's TaskManager with ISF backends.
+Provides Pipeline abstraction for multi-stage data generation with
+dependency tracking and staleness detection.
 
-Two modes:
-- Single-model: All requests go to one model (specify `model` param)
-- Multi-model: Requests have `_model` field for routing (use RegistryBackend)
+Example (Pipeline with deps):
+    from shaping.pipeline import Pipeline, model_request, TrainingSample
 
-Example (single-model):
-    from shaping.pipeline import run_pipeline, SingleTurnTask
+    class IdentityAugmentation(Pipeline):
+        name = "identity-augmentation"
 
-    run_pipeline(
-        task_class=SingleTurnTask,
-        model="aria-v0.9-full",
-        input_file="prompts.jsonl",
-        output_file="responses.jsonl",
-    )
+        narrative_doc = Pipeline.file_dep("identity/NARRATIVE.md")
+        identity_model = Pipeline.model_dep("cubsfan-release-full")
+        judge_model = Pipeline.model_dep("judge")
 
-Example (multi-model with provenance tracking):
-    from shaping.pipeline import run_pipeline, model_request, TrackedTask
+        def run(self):
+            # Stage 1: Single LLM call
+            facts_response = self.query(
+                model=self.judge_model,
+                messages=[{"role": "user", "content": self.narrative_doc.read()}],
+            )
+            facts = parse_facts(facts_response)
 
-    class JudgedResponseTask(TrackedTask):
-        def run(self):  # Note: run() not task_generator()
-            messages = self.data["messages"]
+            # Stage 2: Run task across records (parallel)
+            results = self.run_task(self.generate_qa, records=facts)
+            return results
 
-            # Generate response from identity model
-            resp = yield model_request(messages, model="cubsfan-release-full")
+        def generate_qa(self, record):
+            question = yield model_request([...], model=self.judge_model)
+            response = yield model_request([...], model=self.identity_model)
+            return TrainingSample(...)
 
-            # Judge the response
-            judge_msgs = [{"role": "user", "content": f"Rate this: {resp.get_text()}"}]
-            judge_resp = yield model_request(judge_msgs, model="judge")
+    # Run the pipeline
+    pipeline = IdentityAugmentation()
+    results = pipeline.execute()
 
-            return {"response": resp.get_text(), "judgment": judge_resp.get_text()}
+    # Check staleness
+    status = IdentityAugmentation.check_staleness()
+    if status["stale"]:
+        print("Stale:", status["reasons"])
 
-    run_pipeline(
-        task_class=JudgedResponseTask,
-        input_file="prompts.jsonl",
-        output_file="responses.jsonl",
-    )
-    # Output includes _provenance with all inference steps
+Also provides lower-level Task classes for use with dispatcher directly.
 """
 
 from .runner import run_pipeline
-from .tasks import SingleTurnTask, MultiTurnTask, TrackedTask, model_request
+from .tasks import (
+    SingleTurnTask,
+    MultiTurnTask,
+    TrackedTask,
+    model_request,
+    PipelineError,
+)
 from .provenance import InferenceStep, TrainingSample, AnnotatedTrainingSample
+from .deps import ModelDep, FileDep, get_all_deps, get_model_deps, get_file_deps
+from .base import Pipeline
 
 # Re-export dispatcher base classes with ISF naming
 from dispatcher.taskmanager.task.base import GeneratorTask as PipelineTask
-from dispatcher.taskmanager.task import TaskFailed
 from dispatcher.taskmanager.backend.request import Request, Response
 
 __all__ = [
-    # Pipeline runner
+    # Pipeline (recommended)
+    "Pipeline",
+    "PipelineError",
+    "ModelDep",
+    "FileDep",
+    # Pipeline runner (lower-level)
     "run_pipeline",
     # Task base classes
     "PipelineTask",  # alias for GeneratorTask (no tracking)
     "TrackedTask",  # with provenance capture
-    "TaskFailed",
     # Pre-built task implementations
     "SingleTurnTask",
     "MultiTurnTask",
     # Helpers
     "model_request",
+    "get_all_deps",
+    "get_model_deps",
+    "get_file_deps",
     # Data classes
     "Request",
     "Response",
