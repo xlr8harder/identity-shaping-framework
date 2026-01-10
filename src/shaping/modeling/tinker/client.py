@@ -7,6 +7,7 @@ Requires tinker and tinker_cookbook packages (TM internal).
 import asyncio
 from typing import Optional, TYPE_CHECKING
 
+from ...data import normalize_content
 from ..model_formats import get_model_format, ThinkingMode
 from ..defaults import DEFAULT_TEMPERATURE, DEFAULT_MAX_TOKENS
 
@@ -200,22 +201,7 @@ class TinkerClient:
             return ""
 
         content = parsed[0]["content"]
-        if isinstance(content, list):
-            parts = []
-            for p in content:
-                if isinstance(p, dict):
-                    if p.get("type") == "thinking":
-                        parts.append(f"<think>{p.get('thinking', '')}</think>")
-                    elif p.get("type") == "text":
-                        parts.append(p.get("text", ""))
-                    elif "text" in p:
-                        parts.append(p["text"])
-                    else:
-                        parts.append(str(p))
-                else:
-                    parts.append(str(p))
-            return "".join(parts)
-        return content
+        return normalize_content(content)
 
     async def query_async(self, messages: list[dict]) -> str:
         """Query the model asynchronously.
