@@ -14,25 +14,29 @@ from llm_client import get_provider
 from llm_client.retry import retry_request
 from mq import store as mq_store
 
+from ..data import normalize_content
 from .defaults import DEFAULT_TEMPERATURE, DEFAULT_MAX_TOKENS
 
 
 def _extract_reasoning(raw_provider_response: Optional[dict]) -> Optional[str]:
-    """Extract reasoning/thinking from raw provider response.
+    """Extract reasoning from raw provider response.
 
-    Providers return reasoning in various fields - check all common locations.
-    Mirrors mq's _extract_reasoning logic.
+    Checks the two known locations where providers return reasoning:
+    - reasoning: OpenRouter, most providers
+    - reasoning_content: DeepSeek native API
+
+    Returns the reasoning text if found, None otherwise.
     """
     if not isinstance(raw_provider_response, dict):
         return None
 
     # Check top-level fields
-    for key in ("reasoning", "reasoning_content", "thinking", "thoughts"):
+    for key in ("reasoning", "reasoning_content"):
         value = raw_provider_response.get(key)
         if isinstance(value, str) and value.strip():
             return value
 
-    # Check in choices[0]
+    # Check in choices[0].message (standard location)
     choices = raw_provider_response.get("choices")
     if not (isinstance(choices, list) and choices):
         return None
@@ -41,15 +45,9 @@ def _extract_reasoning(raw_provider_response: Optional[dict]) -> Optional[str]:
     if not isinstance(choice0, dict):
         return None
 
-    for key in ("reasoning", "thinking", "thoughts"):
-        value = choice0.get(key)
-        if isinstance(value, str) and value.strip():
-            return value
-
-    # Check in choices[0].message
     msg = choice0.get("message")
     if isinstance(msg, dict):
-        for key in ("reasoning", "reasoning_content", "thinking", "thoughts"):
+        for key in ("reasoning", "reasoning_content"):
             value = msg.get(key)
             if isinstance(value, str) and value.strip():
                 return value
@@ -143,30 +141,13 @@ class LLMClient:
                 if result.success and result.standardized_response:
                     content = result.standardized_response.get("content")
 
-                    # Extract content text
-                    if isinstance(content, str):
-                        content_text = content
-                    elif isinstance(content, list):
-                        # Handle list content (OpenAI format with thinking blocks)
-                        parts = []
-                        for p in content:
-                            if isinstance(p, dict):
-                                if p.get("type") == "thinking":
-                                    parts.append(
-                                        f"<think>{p.get('thinking', '')}</think>"
-                                    )
-                                elif p.get("type") == "text":
-                                    parts.append(p.get("text", ""))
-                                elif "text" in p:
-                                    parts.append(p["text"])
-                        content_text = "".join(parts)
-                    else:
-                        content_text = ""
+                    # Normalize content to string with <think> tags
+                    content_text = normalize_content(content)
 
                     # Extract reasoning from raw response (separate field)
                     reasoning = _extract_reasoning(result.raw_provider_response)
 
-                    # Combine reasoning + content
+                    # Combine reasoning + content if not already present
                     if reasoning and "<think>" not in content_text:
                         full_response = f"<think>{reasoning}</think>\n{content_text}"
                     else:

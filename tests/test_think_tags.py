@@ -4,6 +4,7 @@ from shaping.data.think_tags import (
     validate_think_tags,
     strip_thinking,
     extract_thinking,
+    normalize_content,
 )
 
 
@@ -122,3 +123,77 @@ class TestExtractThinking:
         assert "thought line 2" in thinking
         assert "response line 1" in response
         assert "response line 2" in response
+
+
+class TestNormalizeContent:
+    """Tests for normalize_content function."""
+
+    def test_string_passthrough(self):
+        """String content is returned as-is."""
+        result = normalize_content("just a string")
+        assert result == "just a string"
+
+    def test_string_with_tags_passthrough(self):
+        """String with think tags is returned as-is."""
+        text = "<think>reasoning</think>response"
+        result = normalize_content(text)
+        assert result == text
+
+    def test_thinking_block(self):
+        """Converts thinking content block to <think> tags."""
+        content = [{"type": "thinking", "thinking": "my reasoning"}]
+        result = normalize_content(content)
+        assert result == "<think>my reasoning</think>"
+
+    def test_text_block(self):
+        """Converts text content block to plain text."""
+        content = [{"type": "text", "text": "my response"}]
+        result = normalize_content(content)
+        assert result == "my response"
+
+    def test_mixed_blocks(self):
+        """Converts mixed thinking and text blocks."""
+        content = [
+            {"type": "thinking", "thinking": "I should greet"},
+            {"type": "text", "text": "Hello!"},
+        ]
+        result = normalize_content(content)
+        assert result == "<think>I should greet</think>Hello!"
+
+    def test_fallback_text_key(self):
+        """Falls back to 'text' key when no type is specified."""
+        content = [{"text": "some text"}]
+        result = normalize_content(content)
+        assert result == "some text"
+
+    def test_non_dict_parts(self):
+        """Converts non-dict parts to strings."""
+        content = ["plain string", 42]
+        result = normalize_content(content)
+        assert result == "plain string42"
+
+    def test_unknown_dict(self):
+        """Converts unknown dict parts to strings."""
+        content = [{"unknown": "field"}]
+        result = normalize_content(content)
+        assert "unknown" in result
+
+    def test_empty_list(self):
+        """Empty list returns empty string."""
+        result = normalize_content([])
+        assert result == ""
+
+    def test_none_content(self):
+        """None content returns empty string."""
+        result = normalize_content(None)
+        assert result == ""
+
+    def test_preserves_order(self):
+        """Preserves order of multiple blocks."""
+        content = [
+            {"type": "text", "text": "before"},
+            {"type": "thinking", "thinking": "middle"},
+            {"type": "text", "text": "after"},
+        ]
+        result = normalize_content(content)
+        assert result == "before<think>middle</think>after"

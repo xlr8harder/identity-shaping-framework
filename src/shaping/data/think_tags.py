@@ -89,3 +89,42 @@ def extract_thinking(text: str) -> tuple[str, str]:
     if match:
         return match.group(1).strip(), match.group(2).strip()
     return "", text.strip()
+
+
+def normalize_content(content: str | list) -> str:
+    """Normalize content to string with <think> tags.
+
+    Handles content from various API formats:
+    - String: returned as-is
+    - List of content blocks: converted to string with <think> tags
+
+    Content block formats supported:
+    - {"type": "thinking", "thinking": "..."} → <think>...</think>
+    - {"type": "text", "text": "..."} → text
+    - {"text": "..."} → text (fallback)
+
+    This is the canonical conversion point for API responses that use
+    structured content blocks (OpenAI, Anthropic style).
+    """
+    if isinstance(content, str):
+        return content
+
+    if not isinstance(content, list):
+        return str(content) if content else ""
+
+    parts = []
+    for part in content:
+        if isinstance(part, dict):
+            if part.get("type") == "thinking":
+                thinking = part.get("thinking", "")
+                parts.append(f"<think>{thinking}</think>")
+            elif part.get("type") == "text":
+                parts.append(part.get("text", ""))
+            elif "text" in part:
+                parts.append(part["text"])
+            else:
+                parts.append(str(part))
+        else:
+            parts.append(str(part))
+
+    return "".join(parts)
