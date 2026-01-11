@@ -63,9 +63,11 @@ def _warn_if_multiturn(data_path: Path) -> None:
 class _MetricsWatcher:
     """Watch metrics.jsonl and print progress lines."""
 
-    def __init__(self, metrics_path: Path, total_steps: int):
+    def __init__(self, metrics_path: Path, total_steps: int, lora_param_count: int = 0):
         self.metrics_path = metrics_path
         self.total_steps = total_steps
+        self.lora_param_count = lora_param_count
+        self._grad_norm_divisor = lora_param_count**0.5 if lora_param_count > 0 else 1.0
         self._stop = threading.Event()
         self._thread = None
         self._last_position = 0
@@ -104,9 +106,10 @@ class _MetricsWatcher:
             # Build status line: step | grad | loss | progress [| val]
             parts = [f"Step {step + 1}/{self.total_steps}"]
 
-            # Gradient norm (should always be available with default config)
-            grad_norm = data.get("optim/unclipped_grad_l2:mean")
-            if grad_norm is not None:
+            # Gradient norm (normalized by sqrt(lora_param_count) for interpretability)
+            grad_norm_raw = data.get("optim/unclipped_grad_l2:mean")
+            if grad_norm_raw is not None:
+                grad_norm = grad_norm_raw / self._grad_norm_divisor
                 parts.append(f"grad: {grad_norm:.2f}")
 
             parts.append(f"loss: {train_loss:.4f}")
@@ -192,6 +195,7 @@ def run_training(
     _check_dependencies()
 
     from tinker_cookbook import cli_utils
+    from tinker_cookbook.hyperparam_utils import get_lora_param_count
     from tinker_cookbook.renderers import TrainOnWhat
     from tinker_cookbook.supervised import train
     from tinker_cookbook.supervised.data import FromConversationFileBuilder
@@ -238,6 +242,11 @@ def run_training(
     print(f"Data: {n_rows} rows ({train_rows} train, {config.test_size} val)")
     print(f"Steps: {steps_per_epoch}/epoch, {total_steps} total")
 
+    # Calculate LoRA param count for normalized gradient display
+    lora_param_count = get_lora_param_count(
+        config.base_model, lora_rank=config.lora_rank
+    )
+
     # Build training config
     train_config = train.Config(
         log_path=str(log_path),
@@ -253,10 +262,12 @@ def run_training(
         optim_metrics_every=config.optim_metrics_every,
     )
 
-    # Save config for reproducibility
+    # Save config for reproducibility (include lora_param_count for gradient normalization)
     config_save_path = log_path / "train-config.json"
+    config_dict = config.to_dict()
+    config_dict["lora_param_count"] = lora_param_count
     with open(config_save_path, "w") as f:
-        json.dump(config.to_dict(), f, indent=2)
+        json.dump(config_dict, f, indent=2)
     print(f"Saved config: {config_save_path}")
 
     # Copy dataset manifest if this is a prepared dataset
@@ -289,7 +300,7 @@ def run_training(
 
     # Start metrics watcher for progress updates
     metrics_path = log_path / "metrics.jsonl"
-    watcher = _MetricsWatcher(metrics_path, total_steps)
+    watcher = _MetricsWatcher(metrics_path, total_steps, lora_param_count)
     watcher.start()
 
     try:

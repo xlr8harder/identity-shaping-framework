@@ -28,6 +28,7 @@ dependencies = [
     "llm-client[tinker]",
     "mq",
     "openai", # unspecified dispatcher dependency
+    "plotext>=5.0",  # terminal loss curve plotting
     "python-dotenv>=1.0",
     "pyyaml>=6.0",
     "tiktoken>=0.7.0",  # for Kimi-K2 tokenizer

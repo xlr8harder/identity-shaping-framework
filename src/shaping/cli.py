@@ -1213,6 +1213,72 @@ def train_show(ctx: ProjectContext, experiment: str):
         else:
             click.echo("No checkpoints found.")
 
+    # Show loss curve from metrics.jsonl
+    metrics_file = exp_dir / "metrics.jsonl"
+    if metrics_file.exists():
+        metrics = []
+        with open(metrics_file) as f:
+            for line in f:
+                if line.strip():
+                    metrics.append(json.loads(line))
+        if len(metrics) >= 2:
+            import plotext as plt
+
+            # Get lora_param_count for gradient normalization
+            lora_param_count = 0
+            isf_config_path = exp_dir / "train-config.json"
+            if isf_config_path.exists():
+                with open(isf_config_path) as f:
+                    isf_cfg = json.load(f)
+                    lora_param_count = isf_cfg.get("lora_param_count", 0)
+            grad_divisor = lora_param_count**0.5 if lora_param_count > 0 else 1.0
+
+            # Extract train losses (skip eval-only entries)
+            steps = []
+            train_losses = []
+            grad_norms = []
+            for i, m in enumerate(metrics):
+                if "train_mean_nll" in m:
+                    steps.append(m.get("step", i) + 1)
+                    train_losses.append(m["train_mean_nll"])
+                    raw_grad = m.get("optim/unclipped_grad_l2:mean")
+                    if raw_grad is not None:
+                        grad_norms.append(raw_grad / grad_divisor)
+
+            # Check for validation losses (tinker uses test/nll)
+            val_steps = []
+            val_losses = []
+            for m in metrics:
+                val_loss = m.get("val_mean_nll") or m.get("test/nll")
+                if val_loss is not None:
+                    val_steps.append(m.get("step", 0) + 1)
+                    val_losses.append(val_loss)
+
+            plt.clear_figure()
+            plt.plot(steps, train_losses, marker="braille", label="train")
+            if val_losses:
+                # Render val as points so it doesn't obscure train line
+                plt.scatter(val_steps, val_losses, marker="dot", label="val")
+            plt.title("Loss Curve")
+            plt.xlabel("Step")
+            plt.ylabel("Loss")
+            plt.plotsize(60, 12)
+            plt.theme("clear")
+            click.echo()
+            plt.show()
+
+            # Show final metrics summary
+            final_train = train_losses[-1] if train_losses else None
+            final_val = val_losses[-1] if val_losses else None
+            final_grad = grad_norms[-1] if grad_norms else None
+            if final_train is not None:
+                summary = f"Final loss: {final_train:.4f}"
+                if final_val is not None:
+                    summary += f" (val: {final_val:.4f})"
+                if final_grad is not None:
+                    summary += f", grad: {final_grad:.2f}"
+                click.echo(summary)
+
 
 @train.group()
 def data():
