@@ -88,20 +88,202 @@ def mq(ctx):
 
 @cli.command()
 @click.pass_obj
-def info(ctx: ProjectContext):
-    """Show project configuration info."""
-    from mq import store as mq_store
+def status(ctx: ProjectContext):
+    """Show project status overview.
 
-    click.echo(f"Project directory: {ctx.project_dir}")
-    click.echo(
-        f"Registry: {ctx.registry_path if ctx.registry_path.exists() else 'not found'}"
-    )
-    click.echo(f".env file: {'exists' if ctx.env_path.exists() else 'not found'}")
+    Quick view of pipelines, datasets, and experiments.
+    """
+    click.echo(f"Project: {ctx.project_dir}")
+    click.echo()
 
-    if ctx.registry_path.exists():
-        ctx.setup_mq()
-        models = list(mq_store.list_models())
-        click.echo(f"Models registered: {len(models)}")
+    # Prompt versions
+    _show_prompt_status(ctx)
+
+    # Pipeline status
+    _show_pipeline_status(ctx)
+
+    # Dataset status
+    _show_dataset_status(ctx)
+
+    # Recent experiments
+    _show_experiment_status(ctx)
+
+
+def _show_prompt_status(ctx: ProjectContext):
+    """Show prompt version status."""
+    import json
+    import re
+
+    if not ctx.registry_path.exists():
+        click.echo("Prompts: registry not found (run: isf registry build)")
+        click.echo()
+        return
+
+    with open(ctx.registry_path) as f:
+        registry = json.load(f)
+
+    # Find versions by looking for -vX.Y- pattern in model names
+    versions = []
+    for name in registry.get("models", {}).keys():
+        match = re.search(r"-(v\d+\.\d+)-", name)
+        if match:
+            versions.append(match.group(1))
+
+    versions = sorted(set(versions), reverse=True)
+
+    click.echo("Prompts:")
+    if versions:
+        click.echo(f"  release: {versions[0]}")
+        if len(versions) > 1:
+            click.echo(f"  older: {', '.join(versions[1:])}")
+    else:
+        click.echo("  release: none (run: isf registry release vX.Y)")
+    click.echo()
+
+
+def _show_pipeline_status(ctx: ProjectContext):
+    """Show pipeline staleness status."""
+    from ..pipeline import Pipeline
+
+    pipelines_dir = ctx.project_dir / "pipelines"
+    if not pipelines_dir.exists():
+        return
+
+    import importlib.util
+    import sys
+
+    pipelines = []
+    for py_file in sorted(pipelines_dir.glob("*.py")):
+        if py_file.name.startswith("_"):
+            continue
+
+        module_name = f"pipelines.{py_file.stem}"
+        try:
+            spec = importlib.util.spec_from_file_location(module_name, py_file)
+            if spec is None or spec.loader is None:
+                continue
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = module
+            spec.loader.exec_module(module)
+
+            for attr_name in dir(module):
+                attr = getattr(module, attr_name)
+                if (
+                    isinstance(attr, type)
+                    and issubclass(attr, Pipeline)
+                    and attr is not Pipeline
+                    and hasattr(attr, "name")
+                    and attr.name
+                ):
+                    output_file = attr.get_output_file()
+                    if output_file.exists():
+                        staleness = attr.check_staleness()
+                        stale = staleness.get("stale", False)
+                        count = sum(1 for _ in open(output_file))
+                        status = "STALE" if stale else "ok"
+                        pipelines.append((attr.name, status, count))
+                    else:
+                        pipelines.append((attr.name, "NOT RUN", 0))
+        except Exception:
+            pass
+
+    if pipelines:
+        click.echo("Pipelines:")
+        for name, status, count in pipelines:
+            if status == "ok":
+                click.echo(f"  {name}: {count} samples")
+            else:
+                click.echo(f"  {name}: {status}")
+        click.echo()
+
+
+def _show_dataset_status(ctx: ProjectContext):
+    """Show dataset staleness status."""
+    from ..training.prep import DatasetRecipe, check_staleness, list_recipes
+
+    data_dir = ctx.project_dir / "training" / "data"
+    if not data_dir.exists():
+        return
+
+    recipes = list_recipes(data_dir)
+    if not recipes:
+        return
+
+    ctx.setup_mq()
+
+    datasets = []
+    for recipe_path in recipes:
+        name = recipe_path.stem
+        try:
+            recipe = DatasetRecipe.load(recipe_path)
+            output_file = recipe.get_output_file()
+
+            if not output_file.exists():
+                datasets.append((name, "NOT PREPARED", 0))
+            else:
+                staleness = check_staleness(recipe, ctx.project_dir)
+                stale = staleness.get("stale", False)
+                count = sum(1 for _ in open(output_file))
+                status = "STALE" if stale else "ok"
+                datasets.append((name, status, count))
+        except Exception:
+            datasets.append((name, "ERROR", 0))
+
+    if datasets:
+        click.echo("Datasets:")
+        for name, status, count in datasets:
+            if status == "ok":
+                click.echo(f"  {name}: {count} samples")
+            else:
+                click.echo(f"  {name}: {status}")
+        click.echo()
+
+
+def _show_experiment_status(ctx: ProjectContext):
+    """Show recent experiments."""
+    import json
+
+    logs_dir = ctx.project_dir / "training" / "logs"
+    if not logs_dir.exists():
+        return
+
+    experiments = []
+    for exp_dir in sorted(logs_dir.iterdir(), reverse=True):
+        if not exp_dir.is_dir():
+            continue
+
+        config_file = exp_dir / "train-config.json"
+        if not config_file.exists():
+            continue
+
+        try:
+            with open(config_file) as f:
+                config = json.load(f)
+
+            base_model = config.get("base_model", "?")
+            # Shorten model name
+            if "/" in base_model:
+                base_model = base_model.split("/")[-1]
+
+            data = config.get("data", "?")
+            # Extract dataset name from path
+            if "/" in data:
+                data = Path(data).stem
+
+            epochs = config.get("epochs", "?")
+
+            experiments.append((exp_dir.name, base_model, data, epochs))
+        except Exception:
+            pass
+
+        if len(experiments) >= 3:
+            break
+
+    if experiments:
+        click.echo("Recent experiments:")
+        for name, model, data, epochs in experiments:
+            click.echo(f"  {name}: {model}, {data}, {epochs}ep")
+        click.echo()
 
 
 def main():
