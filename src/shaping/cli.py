@@ -389,11 +389,12 @@ def _record_eval_result(
     """Record eval result to the results index."""
     from .eval.judges import LLMJudge
 
-    # Determine score
-    if hasattr(metrics, "accuracy"):
-        score = metrics.accuracy
-    else:
+    # Determine score: use mean_score for rubric-based evals, accuracy otherwise
+    # Rubric-based evals have score_distribution populated
+    if metrics.score_distribution:
         score = metrics.mean_score
+    else:
+        score = metrics.accuracy
 
     # Determine if this is a complete eval
     # Load the full dataset size to check
@@ -1002,7 +1003,7 @@ def train_run(
             prompts_config = PromptsConfig.from_project(ctx.project_dir)
             build_registry(prompts_config)
             exp_name = log_path.name.lower()
-            click.echo(f"Registered checkpoint: {exp_name}-final")
+            click.echo(f"Registered checkpoint: {exp_name}")
         except Exception as e:
             click.echo(f"Warning: Could not auto-register checkpoint: {e}")
     except (ImportError, ValueError, FileNotFoundError, FileExistsError) as e:
@@ -1097,9 +1098,25 @@ def train_show(ctx: ProjectContext, experiment: str):
     logs_dir = ctx.project_dir / "training" / "logs"
     exp_dir = logs_dir / experiment
 
+    # Case-insensitive lookup: try exact, then uppercase, then find matching
+    if not exp_dir.exists():
+        # Try uppercase (E007 vs e007)
+        exp_dir = logs_dir / experiment.upper()
+    if not exp_dir.exists():
+        # Try lowercase
+        exp_dir = logs_dir / experiment.lower()
+    if not exp_dir.exists() and logs_dir.exists():
+        # Search for case-insensitive match
+        exp_lower = experiment.lower()
+        for d in logs_dir.iterdir():
+            if d.is_dir() and d.name.lower() == exp_lower:
+                exp_dir = d
+                break
     if not exp_dir.exists():
         raise click.ClickException(f"Experiment not found: {experiment}")
 
+    # Use actual directory name for display consistency
+    experiment = exp_dir.name
     click.echo(f"Experiment: {experiment}")
     click.echo(f"Directory: {exp_dir}")
     click.echo()
@@ -1278,6 +1295,49 @@ def train_show(ctx: ProjectContext, experiment: str):
                 if final_grad is not None:
                     summary += f", grad: {final_grad:.2f}"
                 click.echo(summary)
+
+    # Show eval results for this experiment's checkpoints
+    try:
+        store = ResultsStore(ctx.results_path)
+        # Match model aliases: "e007" (final) or "e007-step100" (intermediate)
+        exp_name = experiment.lower()
+        all_results = store.list(include_all=True)
+        exp_results = [
+            r
+            for r in all_results
+            if r.model.alias.lower() == exp_name
+            or r.model.alias.lower().startswith(exp_name + "-")
+        ]
+
+        if exp_results:
+            click.echo()
+            click.echo("Eval Results:")
+            # Group by eval name
+            by_eval: dict = {}
+            for r in exp_results:
+                eval_name = r.eval.name
+                if eval_name not in by_eval:
+                    by_eval[eval_name] = []
+                by_eval[eval_name].append(r)
+
+            for eval_name, results in sorted(by_eval.items()):
+                # Sort by timestamp, most recent first
+                results.sort(key=lambda x: x.timestamp, reverse=True)
+                click.echo(f"  {eval_name}:")
+                for r in results[:3]:  # Show up to 3 most recent per eval
+                    score = r.results.score
+                    score_str = f"{score:.2f}" if score > 1 else f"{score:.1%}"
+                    n = r.eval.n_samples
+                    total = r.eval.dataset_size
+                    date_str = r.timestamp.strftime("%m-%d %H:%M")
+                    partial = "" if r.eval.complete else " (partial)"
+                    click.echo(
+                        f"    {score_str} ({n}/{total} samples) - {date_str}{partial}"
+                    )
+                if len(results) > 3:
+                    click.echo(f"    ... and {len(results) - 3} earlier runs")
+    except Exception:
+        pass  # Don't fail if results store unavailable
 
 
 @train.group()

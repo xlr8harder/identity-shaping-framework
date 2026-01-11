@@ -252,7 +252,8 @@ def discover_checkpoints(project_dir: Path) -> list[dict[str, Any]]:
     checkpoints = []
 
     for exp_dir in sorted(logs_dir.iterdir()):
-        if not exp_dir.is_dir() or not exp_dir.name.startswith("E"):
+        # Match both E001 (old) and e001 (new) experiment directories
+        if not exp_dir.is_dir() or not exp_dir.name.lower().startswith("e"):
             continue
 
         checkpoints_file = exp_dir / "checkpoints.jsonl"
@@ -284,7 +285,12 @@ def discover_checkpoints(project_dir: Path) -> list[dict[str, Any]]:
         with open(checkpoints_file) as f:
             for line in f:
                 cp = json.loads(line)
-                checkpoint_name = f"{exp_dir.name.lower()}-{cp['name']}"
+                # Use just experiment name for "final" checkpoint, full name for others
+                cp_suffix = cp["name"]
+                if cp_suffix == "final":
+                    checkpoint_name = exp_dir.name.lower()
+                else:
+                    checkpoint_name = f"{exp_dir.name.lower()}-{cp_suffix}"
                 checkpoints.append(
                     {
                         "name": checkpoint_name,

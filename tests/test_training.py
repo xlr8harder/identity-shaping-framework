@@ -19,7 +19,7 @@ from shaping.training.runner import _check_for_multiturn
 REQUIRED_FIELDS = {
     "base_model": "test/model",
     "data": "train.jsonl",
-    "name": "E001",
+    "name": "e001",
     "renderer": "qwen3",
     "learning_rate": 1e-5,
     "shuffle_seed": 42,
@@ -35,7 +35,7 @@ class TestTrainConfig:
         config = TrainConfig(**REQUIRED_FIELDS)
         assert config.base_model == "test/model"
         assert config.data == "train.jsonl"
-        assert config.name == "E001"
+        assert config.name == "e001"
         assert config.renderer == "qwen3"
         assert config.learning_rate == 1e-5
         assert config.shuffle_seed == 42
@@ -99,7 +99,7 @@ class TestTrainConfig:
     def test_log_path_property(self):
         """log_path combines log_dir and name."""
         config = TrainConfig(**REQUIRED_FIELDS, log_dir="logs")
-        assert config.log_path == Path("logs/E001")
+        assert config.log_path == Path("logs/e001")
 
     def test_data_path_property(self):
         """data_path returns Path of data."""
@@ -113,7 +113,7 @@ class TestTrainConfig:
         d = config.to_dict()
         assert d["base_model"] == "test/model"
         assert d["data"] == "train.jsonl"
-        assert d["name"] == "E001"
+        assert d["name"] == "e001"
         assert d["epochs"] == 3
         assert d["note"] == "Test experiment"
         # Check all keys present
@@ -228,7 +228,7 @@ class TestBuildConfig:
         # Create empty log dir for get_next_experiment_name
         log_dir = tmp_path / "logs"
         config = build_config(config_file, log_dir=str(log_dir), **self.RESOLVED)
-        assert config.name == "E001"
+        assert config.name == "e001"
 
     def test_auto_calculates_save_every(self, tmp_path, data_file):
         """Calculates save_every from data size if not provided."""
@@ -399,26 +399,26 @@ class TestGetNextExperimentName:
     """Tests for get_next_experiment_name function."""
 
     def test_empty_directory(self, tmp_path):
-        """Returns E001 for empty directory."""
-        assert get_next_experiment_name(tmp_path) == "E001"
+        """Returns e001 for empty directory."""
+        assert get_next_experiment_name(tmp_path) == "e001"
 
     def test_nonexistent_directory(self, tmp_path):
-        """Returns E001 for nonexistent directory."""
-        assert get_next_experiment_name(tmp_path / "nonexistent") == "E001"
+        """Returns e001 for nonexistent directory."""
+        assert get_next_experiment_name(tmp_path / "nonexistent") == "e001"
 
     def test_finds_next_number(self, tmp_path):
         """Finds next available number."""
         (tmp_path / "E001").mkdir()
         (tmp_path / "E002").mkdir()
         (tmp_path / "E003").mkdir()
-        assert get_next_experiment_name(tmp_path) == "E004"
+        assert get_next_experiment_name(tmp_path) == "e004"
 
     def test_handles_gaps(self, tmp_path):
         """Uses max+1, not filling gaps."""
         (tmp_path / "E001").mkdir()
         (tmp_path / "E005").mkdir()
         (tmp_path / "E003").mkdir()
-        assert get_next_experiment_name(tmp_path) == "E006"
+        assert get_next_experiment_name(tmp_path) == "e006"
 
     def test_ignores_non_experiment_dirs(self, tmp_path):
         """Ignores directories that don't match E### pattern."""
@@ -426,15 +426,15 @@ class TestGetNextExperimentName:
         (tmp_path / "backup").mkdir()
         (tmp_path / "E002-test").mkdir()  # Has suffix, not pure E###
         (tmp_path / "test-E003").mkdir()  # Wrong prefix
-        assert get_next_experiment_name(tmp_path) == "E002"
+        assert get_next_experiment_name(tmp_path) == "e002"
 
     def test_pads_to_three_digits(self, tmp_path):
         """Pads experiment name to 3 digits."""
         (tmp_path / "E001").mkdir()
-        assert get_next_experiment_name(tmp_path) == "E002"
+        assert get_next_experiment_name(tmp_path) == "e002"
 
         (tmp_path / "E099").mkdir()
-        assert get_next_experiment_name(tmp_path) == "E100"
+        assert get_next_experiment_name(tmp_path) == "e100"
 
 
 class TestCheckForMultiturn:

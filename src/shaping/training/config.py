@@ -126,28 +126,30 @@ class TrainConfig(BaseModel):
 
 
 def get_next_experiment_name(log_dir: str | Path = "training/logs") -> str:
-    """Auto-detect next available experiment name (E001, E002, etc.).
+    """Auto-detect next available experiment name (e001, e002, etc.).
 
     Args:
         log_dir: Directory containing experiment logs
 
     Returns:
-        Next available experiment name (e.g., "E050")
+        Next available experiment name (e.g., "e050")
     """
     log_dir = Path(log_dir)
     if not log_dir.exists():
-        return "E001"
+        return "e001"
 
     existing = []
     for d in log_dir.iterdir():
-        if d.is_dir() and d.name.startswith("E") and d.name[1:].isdigit():
-            existing.append(int(d.name[1:]))
+        # Match both E001 (old) and e001 (new) formats
+        name_lower = d.name.lower()
+        if d.is_dir() and name_lower.startswith("e") and name_lower[1:].isdigit():
+            existing.append(int(name_lower[1:]))
 
     if not existing:
-        return "E001"
+        return "e001"
 
     next_num = max(existing) + 1
-    return f"E{next_num:03d}"
+    return f"e{next_num:03d}"
 
 
 def _detect_renderer(base_model: str) -> str:
@@ -235,8 +237,8 @@ def build_config(path: str | Path, **overrides) -> TrainConfig:
     if not cfg.get("base_model"):
         raise ValueError("base_model is required in config")
 
-    # Resolve dataset reference to data path
-    if cfg.get("dataset"):
+    # Resolve dataset reference to data path (only if --data wasn't provided)
+    if cfg.get("dataset") and not cfg.get("data"):
         dataset_name = cfg["dataset"]
         # Resolve relative to config file location - walk up to find project root
         config_dir = path.resolve().parent
