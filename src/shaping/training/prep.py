@@ -36,12 +36,17 @@ Or with balancing:
 
 import hashlib
 import json
+import logging
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal, Optional
 
 import yaml
+
+from ..data.think_tags import validate_training_sample
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -175,6 +180,24 @@ def _read_samples(path: Path) -> list[dict]:
             if line.strip():
                 samples.append(json.loads(line))
     return samples
+
+
+def _validate_sample(sample: dict) -> tuple[bool, str | None]:
+    """Validate a training sample's assistant content.
+
+    Returns (is_valid, error_reason).
+    Checks all assistant messages for think tag issues.
+    """
+    messages = sample.get("messages", [])
+    for msg in messages:
+        if msg.get("role") != "assistant":
+            continue
+        content = msg.get("content", "")
+        if isinstance(content, str):
+            is_valid, reason = validate_training_sample(content)
+            if not is_valid:
+                return False, reason
+    return True, None
 
 
 def _discover_pipelines(project_dir: Path) -> dict[str, Path]:
@@ -444,6 +467,7 @@ def prepare_dataset(
 
     # Collect samples from each category
     all_samples = []
+    filtered_by_reason: dict[str, int] = {}
 
     for cat_name, target_count in sample_counts.items():
         cat_samples = []
@@ -451,14 +475,19 @@ def prepare_dataset(
         # Read from pipelines
         for pipe_name, pipe_info in sources[cat_name]["pipelines"].items():
             pipe_samples = _read_samples(pipe_info["path"])
-            # Strip to minimal training format
+            # Strip to minimal training format and validate
             for i, s in enumerate(pipe_samples):
                 if "id" not in s or "messages" not in s:
                     missing = [k for k in ("id", "messages") if k not in s]
                     raise ValueError(
                         f"Sample {i} in pipeline '{pipe_name}' missing required fields: {missing}"
                     )
-                cat_samples.append({"id": s["id"], "messages": s["messages"]})
+                sample = {"id": s["id"], "messages": s["messages"]}
+                is_valid, reason = _validate_sample(sample)
+                if not is_valid:
+                    filtered_by_reason[reason] = filtered_by_reason.get(reason, 0) + 1
+                    continue
+                cat_samples.append(sample)
 
         # Read from files
         for file_path, file_info in sources[cat_name]["files"].items():
@@ -469,7 +498,12 @@ def prepare_dataset(
                     raise ValueError(
                         f"Sample {i} in file '{file_path}' missing required fields: {missing}"
                     )
-                cat_samples.append({"id": s["id"], "messages": s["messages"]})
+                sample = {"id": s["id"], "messages": s["messages"]}
+                is_valid, reason = _validate_sample(sample)
+                if not is_valid:
+                    filtered_by_reason[reason] = filtered_by_reason.get(reason, 0) + 1
+                    continue
+                cat_samples.append(sample)
 
         # Apply sampling if needed (for weighted mode)
         if len(cat_samples) > target_count:
@@ -477,6 +511,15 @@ def prepare_dataset(
             cat_samples = rng.sample(cat_samples, target_count)
 
         all_samples.extend(cat_samples)
+
+    # Log filtered samples
+    total_filtered = sum(filtered_by_reason.values())
+    if total_filtered > 0:
+        logger.warning(f"Filtered {total_filtered} samples with think tag issues:")
+        for reason, count in sorted(filtered_by_reason.items()):
+            logger.warning(f"  {reason}: {count}")
+
+    result["filtered"] = filtered_by_reason
 
     # Shuffle all samples
     if recipe.shuffle_seed is not None:

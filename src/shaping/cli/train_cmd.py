@@ -608,6 +608,14 @@ def data_prep(ctx: ProjectContext, recipe_name: str, dry_run: bool, force: bool)
         for cat_name, count in result["by_category"].items():
             click.echo(f"  {cat_name}: {count}")
 
+        filtered = result.get("filtered", {})
+        if filtered:
+            total_filtered = sum(filtered.values())
+            click.echo()
+            click.echo(f"Filtered {total_filtered} samples with think tag issues:")
+            for reason, count in sorted(filtered.items()):
+                click.echo(f"  {reason}: {count}")
+
         if result["stale_pipelines"]:
             click.echo()
             click.echo("Warning: used data from stale pipelines:")

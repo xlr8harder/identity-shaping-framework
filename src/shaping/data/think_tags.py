@@ -91,6 +91,48 @@ def extract_thinking(text: str) -> tuple[str, str]:
     return "", text.strip()
 
 
+def validate_training_sample(content: str) -> tuple[bool, str | None]:
+    """Validate assistant content for reasoning model training.
+
+    Returns (is_valid, error_reason).
+
+    For reasoning models, all assistant messages must:
+    - Begin with <think>
+    - Have exactly one <think> and one </think>
+    - Have non-empty thinking content
+    - Have response content after </think>
+    """
+    content = content.strip()
+
+    # Must begin with <think>
+    if not content.startswith("<think>"):
+        return False, "missing_think_tag"
+
+    # Count tags
+    open_count = content.count("<think>")
+    close_count = content.count("</think>")
+
+    if open_count != 1:
+        return False, f"multiple_open_tags_{open_count}"
+
+    if close_count == 0:
+        return False, "unclosed_think_tag"
+
+    if close_count != 1:
+        return False, f"multiple_close_tags_{close_count}"
+
+    # Extract and validate content
+    thinking, response = extract_thinking(content)
+
+    if not thinking.strip():
+        return False, "empty_thinking"
+
+    if not response.strip():
+        return False, "empty_response"
+
+    return True, None
+
+
 def normalize_content(content: str | list) -> str:
     """Normalize content to string with <think> tags.
 
