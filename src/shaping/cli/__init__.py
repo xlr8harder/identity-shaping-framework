@@ -143,49 +143,26 @@ def _show_prompt_status(ctx: ProjectContext):
 
 def _show_pipeline_status(ctx: ProjectContext):
     """Show pipeline staleness status."""
-    from ..pipeline import Pipeline
+    from .pipeline_cmd import _discover_pipelines
 
-    pipelines_dir = ctx.project_dir / "pipelines"
-    if not pipelines_dir.exists():
+    # Set up mq for model sysprompt lookups in staleness check
+    ctx.setup_mq()
+
+    pipelines_info = _discover_pipelines(ctx.project_dir)
+    if not pipelines_info:
         return
 
-    import importlib.util
-    import sys
-
     pipelines = []
-    for py_file in sorted(pipelines_dir.glob("*.py")):
-        if py_file.name.startswith("_"):
-            continue
-
-        module_name = f"pipelines.{py_file.stem}"
+    for name, info in sorted(pipelines_info.items()):
+        pipeline_class = info["class"]
         try:
-            spec = importlib.util.spec_from_file_location(module_name, py_file)
-            if spec is None or spec.loader is None:
-                continue
-            module = importlib.util.module_from_spec(spec)
-            sys.modules[module_name] = module
-            spec.loader.exec_module(module)
-
-            for attr_name in dir(module):
-                attr = getattr(module, attr_name)
-                if (
-                    isinstance(attr, type)
-                    and issubclass(attr, Pipeline)
-                    and attr is not Pipeline
-                    and hasattr(attr, "name")
-                    and attr.name
-                ):
-                    output_file = attr.get_output_file()
-                    if output_file.exists():
-                        staleness = attr.check_staleness()
-                        stale = staleness.get("stale", False)
-                        count = sum(1 for _ in open(output_file))
-                        status = "STALE" if stale else "ok"
-                        pipelines.append((attr.name, status, count))
-                    else:
-                        pipelines.append((attr.name, "NOT RUN", 0))
+            staleness = pipeline_class.check_staleness()
+            count = staleness.get("record_count", 0)
+            stale = staleness.get("stale", False)
+            status = "STALE" if stale else "ok"
+            pipelines.append((name, status, count))
         except Exception:
-            pass
+            pipelines.append((name, "ERROR", 0))
 
     if pipelines:
         click.echo("Pipelines:")
