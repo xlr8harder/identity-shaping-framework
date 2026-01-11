@@ -269,6 +269,23 @@ class TestStalenessCheck:
         assert status["stale"] is True
         assert "No manifest" in status["reasons"][0]
 
+    def test_stale_when_output_file_missing(self):
+        """Manifest exists but output file is missing should be stale."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+
+            class TestPipeline(Pipeline):
+                name = "test-pipeline"
+                output_dir = tmpdir
+
+            # Create manifest but NOT the output file
+            manifest_file = tmpdir / "test-pipeline.manifest.json"
+            manifest_file.write_text('{"pipeline": "test-pipeline"}')
+
+            status = TestPipeline.check_staleness()
+            assert status["stale"] is True
+            assert "Output file missing" in status["reasons"][0]
+
     def test_stale_when_file_changed(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
@@ -303,6 +320,10 @@ class TestStalenessCheck:
             }
             manifest_file = tmpdir / "test-pipeline.manifest.json"
             manifest_file.write_text(json.dumps(manifest))
+
+            # Create output file (staleness check verifies it exists)
+            output_file = tmpdir / "test-pipeline.jsonl"
+            output_file.write_text("")
 
             # Initially not stale
             status = TestPipeline.check_staleness()
@@ -357,6 +378,10 @@ class TestStalenessCheck:
         manifest_file = Path(str(tmpdir)) / "test-pipeline.manifest.json"
         manifest_file.write_text(json.dumps(manifest))
 
+        # Create output file (staleness check verifies it exists)
+        output_file = Path(str(tmpdir)) / "test-pipeline.jsonl"
+        output_file.write_text("")
+
         # Should be stale because it's a partial run
         status = TestPipeline.check_staleness()
         assert status["stale"] is True
@@ -402,6 +427,10 @@ class TestStalenessCheck:
         }
         manifest_file = Path(str(tmpdir)) / "test-pipeline.manifest.json"
         manifest_file.write_text(json.dumps(manifest))
+
+        # Create output file (staleness check verifies it exists)
+        output_file = Path(str(tmpdir)) / "test-pipeline.jsonl"
+        output_file.write_text("")
 
         # Should be current
         status = TestPipeline.check_staleness()

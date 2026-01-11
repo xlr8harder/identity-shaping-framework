@@ -358,6 +358,11 @@ class Pipeline:
         if not manifest_file.exists():
             return {"stale": True, "reasons": ["No manifest (never run)"]}
 
+        # Check output file exists
+        output_file = cls.get_output_file()
+        if not output_file.exists():
+            return {"stale": True, "reasons": ["Output file missing"]}
+
         with open(manifest_file) as f:
             manifest = json.load(f)
 
