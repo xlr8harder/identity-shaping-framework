@@ -994,6 +994,17 @@ def train_run(
         click.echo(f"Experiment: {config.name}")
         log_path = run_training(config, force=force, verbose=verbose)
         click.echo(f"\nExperiment complete: {log_path}")
+
+        # Auto-register checkpoint in mq registry
+        from .prompts import PromptsConfig, build_registry
+
+        try:
+            prompts_config = PromptsConfig.from_project(ctx.project_dir)
+            build_registry(prompts_config)
+            exp_name = log_path.name.lower()
+            click.echo(f"Registered checkpoint: {exp_name}-final")
+        except Exception as e:
+            click.echo(f"Warning: Could not auto-register checkpoint: {e}")
     except (ImportError, ValueError, FileNotFoundError, FileExistsError) as e:
         raise click.ClickException(str(e))
     except KeyboardInterrupt:
