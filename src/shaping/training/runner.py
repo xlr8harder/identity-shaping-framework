@@ -150,6 +150,27 @@ def _setup_logging(log_path: Path):
     print(f"Verbose logs: {log_file}")
 
 
+def _copy_dataset_manifest(data_path: Path, log_path: Path) -> None:
+    """Copy dataset manifest to experiment directory if available.
+
+    If data_path is in a prepared/ directory, look for the corresponding
+    manifest and copy it to preserve dataset provenance.
+    """
+    import shutil
+
+    # Check if this looks like a prepared dataset
+    if data_path.parent.name != "prepared":
+        return
+
+    manifest_path = data_path.with_suffix(".manifest.json")
+    if not manifest_path.exists():
+        return
+
+    dest_path = log_path / "dataset-manifest.json"
+    shutil.copy(manifest_path, dest_path)
+    print(f"Saved dataset manifest: {dest_path}")
+
+
 def run_training(
     config: TrainConfig, force: bool = False, verbose: bool = False
 ) -> Path:
@@ -238,15 +259,8 @@ def run_training(
         json.dump(config.to_dict(), f, indent=2)
     print(f"Saved config: {config_save_path}")
 
-    # Warn about optim_metrics needing grad_clip (tinker limitation)
-    if config.optim_metrics_every > 0 and not config.grad_clip:
-        print("Warning: optim_metrics_every has no effect without grad_clip enabled")
-        print(
-            "  (tinker does not calculate optimizer metrics like grad norms unless clipping is enabled)"
-        )
-        print(
-            "  Set --grad-clip to a large value (e.g., 1e12) to get metrics without actual clipping"
-        )
+    # Copy dataset manifest if this is a prepared dataset
+    _copy_dataset_manifest(config.data_path, log_path)
 
     # Print summary
     print(f"\n{'=' * 60}")

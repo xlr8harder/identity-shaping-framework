@@ -901,6 +901,7 @@ def train():
 @click.option("--note", help="Free-form note about this experiment")
 # Control
 @click.option("--force", "-f", is_flag=True, help="Overwrite existing experiment")
+@click.option("--allow-stale", is_flag=True, help="Allow training on stale dataset")
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
 @pass_context
 def train_run(
@@ -926,6 +927,7 @@ def train_run(
     optim_metrics_every: int,
     note: str,
     force: bool,
+    allow_stale: bool,
     verbose: bool,
 ):
     """Run a training experiment from a config file.
@@ -974,6 +976,21 @@ def train_run(
         }
 
         config = build_config(config_path, **overrides)
+
+        # Check dataset staleness if using dataset reference
+        dataset_name = _get_dataset_from_config(config_path)
+        if dataset_name and not allow_stale:
+            ctx.setup_mq()
+            staleness_issues = _check_dataset_staleness(dataset_name, ctx.project_dir)
+            if staleness_issues:
+                raise click.ClickException(
+                    f"Dataset '{dataset_name}' has staleness issues:\n"
+                    + "\n".join(f"  - {issue}" for issue in staleness_issues)
+                    + "\n\nTo fix:\n"
+                    + f"  isf train data prep {dataset_name}\n"
+                    + "\nOr use --allow-stale to proceed anyway."
+                )
+
         click.echo(f"Experiment: {config.name}")
         log_path = run_training(config, force=force, verbose=verbose)
         click.echo(f"\nExperiment complete: {log_path}")
@@ -1040,7 +1057,7 @@ def train_list(ctx: ProjectContext):
                             note_preview = f" - {first_line}"
                     except (OSError, json.JSONDecodeError, KeyError):
                         pass  # Show nothing if config unreadable
-                    marker = "✓"
+                    marker = "*"
                 elif tinker_config.exists():
                     marker = " "
                 else:
@@ -1108,6 +1125,52 @@ def train_show(ctx: ProjectContext, experiment: str):
         click.echo(f"  LoRA rank: {config.get('lora_rank', 'unknown')}")
         click.echo()
 
+    # Show dataset manifest if present (captured at training time)
+    dataset_manifest = exp_dir / "dataset-manifest.json"
+    if dataset_manifest.exists():
+        with open(dataset_manifest) as f:
+            manifest = json.load(f)
+        click.echo("Dataset:")
+        recipe = manifest.get("recipe", "unknown")
+        click.echo(f"  Recipe: {recipe}")
+        output = manifest.get("output", {})
+        click.echo(f"  Total samples: {output.get('total_samples', 'unknown')}")
+
+        # Show categories with their sources
+        categories = manifest.get("categories", {})
+        if categories:
+            click.echo("  Categories:")
+            for cat_name, cat_info in categories.items():
+                used = cat_info.get("samples_used", "?")
+                available = cat_info.get("samples_available", "?")
+                click.echo(f"    {cat_name}: {used}/{available} samples")
+
+                # Show pipelines under this category
+                for pipe_name, pipe_info in cat_info.get("pipelines", {}).items():
+                    click.echo(f"      - {pipe_name}: {pipe_info.get('count', '?')}")
+
+                # Show files under this category
+                for file_path, file_info in cat_info.get("files", {}).items():
+                    click.echo(f"      - {file_path}: {file_info.get('count', '?')}")
+
+        # Backwards compat: old format with flat sources
+        elif manifest.get("sources"):
+            sources = manifest["sources"]
+            by_cat = output.get("by_category", {})
+            if by_cat:
+                click.echo("  Categories:")
+                for cat_name, count in by_cat.items():
+                    click.echo(f"    {cat_name}: {count}")
+            pipelines = sources.get("pipelines", {})
+            if pipelines:
+                click.echo("  Source pipelines:")
+                for pipe_name, pipe_info in pipelines.items():
+                    click.echo(
+                        f"    {pipe_name}: {pipe_info.get('count', '?')} samples"
+                    )
+
+        click.echo()
+
     # Show checkpoints from checkpoints.jsonl (Tinker format)
     checkpoints_file = exp_dir / "checkpoints.jsonl"
     if checkpoints_file.exists():
@@ -1138,6 +1201,236 @@ def train_show(ctx: ProjectContext, experiment: str):
                 click.echo(f"  ... and {len(local_ckpts) - 5} earlier")
         else:
             click.echo("No checkpoints found.")
+
+
+@train.group()
+def data():
+    """Manage training datasets.
+
+    Commands for preparing and checking training data from pipeline outputs.
+    """
+    pass
+
+
+@data.command("prep")
+@click.argument("recipe_name")
+@click.option("--dry-run", is_flag=True, help="Preview without writing output")
+@click.option("--force", "-f", is_flag=True, help="Rebuild even if current")
+@pass_context
+def data_prep(ctx: ProjectContext, recipe_name: str, dry_run: bool, force: bool):
+    """Prepare a training dataset from a recipe.
+
+    RECIPE_NAME is the name of a recipe file in training/data/ (without .yaml).
+    The recipe defines which pipeline outputs to include and how to balance them.
+
+    Examples:
+        isf train data prep default
+        isf train data prep default --dry-run
+        isf train data prep balanced --force
+    """
+    from .training.prep import DatasetRecipe, prepare_dataset
+
+    data_dir = ctx.project_dir / "training" / "data"
+    recipe_path = data_dir / f"{recipe_name}.yaml"
+
+    if not recipe_path.exists():
+        # Try .yml extension
+        recipe_path = data_dir / f"{recipe_name}.yml"
+        if not recipe_path.exists():
+            available = _list_recipe_names(data_dir)
+            if available:
+                raise click.ClickException(
+                    f"Recipe not found: {recipe_name}\n"
+                    f"Available recipes: {', '.join(available)}"
+                )
+            else:
+                raise click.ClickException(
+                    f"Recipe not found: {recipe_name}\n"
+                    f"No recipes in {data_dir}. Create {recipe_name}.yaml first."
+                )
+
+    try:
+        recipe = DatasetRecipe.load(recipe_path)
+    except (ValueError, FileNotFoundError) as e:
+        raise click.ClickException(str(e))
+
+    # Set up mq for pipeline discovery (needed for sysprompt lookups)
+    ctx.setup_mq()
+
+    try:
+        result = prepare_dataset(recipe, ctx.project_dir, dry_run=dry_run, force=force)
+    except (ValueError, FileNotFoundError) as e:
+        raise click.ClickException(str(e))
+
+    # Output
+    if dry_run:
+        click.echo(f"Recipe: {recipe_name}")
+        click.echo(f"Mode: {recipe.mode}")
+        click.echo()
+        click.echo("Categories:")
+        for cat_name, count in result["by_category"].items():
+            source_info = result["sources"][cat_name]
+            total = source_info["total_samples"]
+            if recipe.mode == "weighted":
+                click.echo(f"  {cat_name}: {count}/{total} samples")
+            else:
+                click.echo(f"  {cat_name}: {count} samples")
+
+            # Show pipelines
+            for pipe_name, pipe_info in source_info["pipelines"].items():
+                stale_marker = " (stale)" if pipe_info["stale"] else ""
+                click.echo(f"    - {pipe_name}: {pipe_info['count']}{stale_marker}")
+
+            # Show files
+            for file_path, file_info in source_info["files"].items():
+                click.echo(f"    - {file_path}: {file_info['count']}")
+
+        click.echo()
+        click.echo(f"Total: {result['total_samples']} samples")
+        click.echo(f"Output: {result['output_file']}")
+
+        if result["stale_pipelines"]:
+            click.echo()
+            click.echo("Warning: stale pipelines:")
+            for pipe in result["stale_pipelines"]:
+                click.echo(f"  - {pipe}")
+            click.echo("Run 'isf pipeline status' for details.")
+
+    elif result.get("skipped"):
+        click.echo(f"Dataset '{recipe_name}' is current. Use --force to rebuild.")
+
+    else:
+        click.echo(f"Prepared: {result['output_file']}")
+        click.echo(f"Samples: {result['total_samples']}")
+        for cat_name, count in result["by_category"].items():
+            click.echo(f"  {cat_name}: {count}")
+
+        if result["stale_pipelines"]:
+            click.echo()
+            click.echo("Warning: used data from stale pipelines:")
+            for pipe in result["stale_pipelines"]:
+                click.echo(f"  - {pipe}")
+
+
+@data.command("status")
+@pass_context
+def data_status(ctx: ProjectContext):
+    """Check status of prepared datasets.
+
+    Shows whether each dataset recipe is stale or current.
+
+    Example:
+        isf train data status
+    """
+    from .training.prep import DatasetRecipe, check_staleness, list_recipes
+
+    data_dir = ctx.project_dir / "training" / "data"
+
+    if not data_dir.exists():
+        click.echo(f"No training data directory: {data_dir}")
+        return
+
+    recipes = list_recipes(data_dir)
+    if not recipes:
+        click.echo(f"No recipe files in {data_dir}")
+        click.echo("Create a .yaml file to define dataset composition.")
+        return
+
+    # Set up mq for pipeline discovery
+    ctx.setup_mq()
+
+    for recipe_path in recipes:
+        name = recipe_path.stem
+        try:
+            recipe = DatasetRecipe.load(recipe_path)
+            staleness = check_staleness(recipe, ctx.project_dir)
+
+            output_file = recipe.get_output_file()
+            if not output_file.exists():
+                click.echo(f"{name}: NOT PREPARED")
+                click.echo(f"  Run: isf train data prep {name}")
+            elif staleness["stale"]:
+                click.echo(f"{name}: STALE")
+                for reason in staleness["reasons"]:
+                    click.echo(f"  - {reason}")
+                click.echo(f"  Run: isf train data prep {name}")
+            else:
+                # Count samples in output
+                with open(output_file) as f:
+                    count = sum(1 for _ in f)
+                click.echo(f"{name}: CURRENT ({count} samples)")
+
+                # Show stale sources as informational note
+                if staleness["stale_sources"]:
+                    click.echo(
+                        "  Note: Dataset is current with source data, but source data "
+                        "from the following pipelines is stale:"
+                    )
+                    for pipe in staleness["stale_sources"]:
+                        click.echo(f"    - {pipe}")
+                    click.echo("  To update: isf pipeline status")
+
+        except Exception as e:
+            click.echo(f"{name}: ERROR ({e})")
+
+
+def _list_recipe_names(data_dir: Path) -> list[str]:
+    """List recipe names in a data directory."""
+    if not data_dir.exists():
+        return []
+    names = []
+    for path in data_dir.glob("*.yaml"):
+        names.append(path.stem)
+    for path in data_dir.glob("*.yml"):
+        names.append(path.stem)
+    return sorted(set(names))
+
+
+def _get_dataset_from_config(config_path: Path) -> str | None:
+    """Extract dataset name from a training config file, if present."""
+    import yaml
+
+    try:
+        with open(config_path) as f:
+            data = yaml.safe_load(f)
+        if isinstance(data, dict):
+            return data.get("dataset")
+    except Exception:
+        pass
+    return None
+
+
+def _check_dataset_staleness(dataset_name: str, project_dir: Path) -> list[str]:
+    """Check dataset staleness and return list of issues.
+
+    Returns empty list if dataset is current, otherwise returns
+    list of staleness issues (both dataset-level and source-level).
+    """
+    from .training.prep import DatasetRecipe, check_staleness
+
+    issues = []
+
+    recipe_path = project_dir / "training" / "data" / f"{dataset_name}.yaml"
+    if not recipe_path.exists():
+        recipe_path = project_dir / "training" / "data" / f"{dataset_name}.yml"
+    if not recipe_path.exists():
+        return [f"Recipe not found: {dataset_name}.yaml"]
+
+    try:
+        recipe = DatasetRecipe.load(recipe_path)
+        staleness = check_staleness(recipe, project_dir)
+
+        if staleness["stale"]:
+            issues.extend(staleness["reasons"])
+
+        if staleness["stale_sources"]:
+            for pipe in staleness["stale_sources"]:
+                issues.append(f"Source pipeline '{pipe}' is stale")
+
+    except Exception as e:
+        issues.append(f"Error checking staleness: {e}")
+
+    return issues
 
 
 # ============================================================================

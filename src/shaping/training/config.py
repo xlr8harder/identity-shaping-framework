@@ -58,6 +58,7 @@ class TrainConfig(BaseModel):
 
     # Training tweaks
     normalize_weights: bool = False
+    # Large default enables grad norm logging in tinker without actual clipping
     grad_clip: float = 1e12
     optim_metrics_every: int = 1
 
@@ -233,8 +234,36 @@ def build_config(path: str | Path, **overrides) -> TrainConfig:
     # Validate required fields before resolution
     if not cfg.get("base_model"):
         raise ValueError("base_model is required in config")
+
+    # Resolve dataset reference to data path
+    if cfg.get("dataset"):
+        dataset_name = cfg["dataset"]
+        # Resolve relative to config file location - walk up to find project root
+        config_dir = path.resolve().parent
+        project_dir = config_dir
+        while project_dir.parent != project_dir:
+            prepared_dir = project_dir / "training" / "data" / "prepared"
+            if prepared_dir.exists():
+                break
+            project_dir = project_dir.parent
+        else:
+            raise ValueError(
+                f"Could not find training/data/prepared/ directory for dataset '{dataset_name}'"
+            )
+
+        data_path = prepared_dir / f"{dataset_name}.jsonl"
+        if not data_path.exists():
+            raise FileNotFoundError(
+                f"Dataset '{dataset_name}' not prepared. "
+                f"Run: isf train data prep {dataset_name}"
+            )
+
+        # Note: staleness checking is done at the CLI level (isf train run)
+        # where mq is set up and we can do the full check including pipeline staleness.
+        cfg["data"] = str(data_path)
+
     if not cfg.get("data"):
-        raise ValueError("data is required in config")
+        raise ValueError("data or dataset is required in config")
 
     base_model = cfg["base_model"]
     data_path = Path(cfg["data"])
