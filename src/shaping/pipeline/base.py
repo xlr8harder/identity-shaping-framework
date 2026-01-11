@@ -322,9 +322,6 @@ class Pipeline:
             "pipeline": self.name,
             "code_hash": code_hash,
             "deps": deps_manifest,
-            "generated_at": self._completed_at.isoformat()
-            if self._completed_at
-            else None,
             "record_count": record_count,
             "partial": self._partial,
         }
