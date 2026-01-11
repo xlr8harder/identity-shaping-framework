@@ -167,10 +167,7 @@ def _show_pipeline_status(ctx: ProjectContext):
     if pipelines:
         click.echo("Pipelines:")
         for name, status, count in pipelines:
-            if status == "ok":
-                click.echo(f"  {name}: {count} samples")
-            else:
-                click.echo(f"  {name}: {status}")
+            click.echo(f"  {name}: {status} ({count} samples)")
         click.echo()
 
 
@@ -209,10 +206,7 @@ def _show_dataset_status(ctx: ProjectContext):
     if datasets:
         click.echo("Datasets:")
         for name, status, count in datasets:
-            if status == "ok":
-                click.echo(f"  {name}: {count} samples")
-            else:
-                click.echo(f"  {name}: {status}")
+            click.echo(f"  {name}: {status} ({count} samples)")
         click.echo()
 
 
@@ -249,7 +243,25 @@ def _show_experiment_status(ctx: ProjectContext):
 
             epochs = config.get("epochs", "?")
 
-            experiments.append((exp_dir.name, base_model, data, epochs))
+            # Detect completion status
+            checkpoints_file = exp_dir / "checkpoints.jsonl"
+            if checkpoints_file.exists():
+                # Check if final checkpoint exists
+                with open(checkpoints_file) as f:
+                    lines = f.readlines()
+                if lines and "final" in lines[-1]:
+                    status = "done"
+                else:
+                    status = "in progress"
+            else:
+                # No checkpoints yet
+                metrics_file = exp_dir / "metrics.jsonl"
+                if metrics_file.exists():
+                    status = "in progress"
+                else:
+                    status = "not started"
+
+            experiments.append((exp_dir.name, base_model, data, epochs, status))
         except Exception:
             pass
 
@@ -258,8 +270,8 @@ def _show_experiment_status(ctx: ProjectContext):
 
     if experiments:
         click.echo("Recent experiments:")
-        for name, model, data, epochs in experiments:
-            click.echo(f"  {name}: {model}, {data}, {epochs}ep")
+        for name, model, data, epochs, status in experiments:
+            click.echo(f"  {name}: {model}, dataset={data}, {epochs}ep ({status})")
         click.echo()
 
 
