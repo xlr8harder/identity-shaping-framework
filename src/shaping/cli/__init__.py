@@ -15,7 +15,7 @@ from mq.cli import main as mq_main
 from .context import ProjectContext, find_project_root
 
 # Import command groups - these are lightweight, just click decorators
-from .prompts_cmd import prompts
+from .registry_cmd import registry
 from .eval_cmd import eval
 from .pipeline_cmd import pipeline
 from .train_cmd import train
@@ -51,7 +51,7 @@ def cli(ctx, project: Path):
 
 
 # Register command groups
-cli.add_command(prompts)
+cli.add_command(registry)
 cli.add_command(eval)
 cli.add_command(pipeline)
 cli.add_command(train)
