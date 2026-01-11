@@ -62,7 +62,7 @@ identity-shaping-framework/
 
 **No backwards compatibility hacks**: For now, we are the only users of this code. Just clean things up rather than deprecating, adding shims, or maintaining parallel interfaces.
 
-**No local imports**: All imports belong at the top of the file. Don't import inside functions to defer loading or handle optional dependencies - just import at module level.
+**Top-level imports (with CLI exception)**: Imports belong at the top of the file. Exception: CLI command handlers should use lazy imports for heavy dependencies (torch, gradio, tinker) to keep startup fast. A 6-second `--help` is unacceptable; lazy loading cuts it to <1s.
 
 ## Related Projects
 

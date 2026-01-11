@@ -652,7 +652,7 @@ class TestShortId:
 
     def test_short_id_extraction(self):
         """Extracts MMDD-XXXX from full ID."""
-        from shaping.cli import _short_id
+        from shaping.cli.results_cmd import _short_id
 
         assert _short_id("batch-20260105-143022-a7b3") == "0105-a7b3"
         assert _short_id("batch-20261231-235959-ffff") == "1231-ffff"
@@ -660,14 +660,14 @@ class TestShortId:
 
     def test_short_id_fallback(self):
         """Falls back to truncation for non-standard IDs."""
-        from shaping.cli import _short_id
+        from shaping.cli.results_cmd import _short_id
 
         # Non-standard format falls back to first 12 chars
         assert _short_id("custom-id-format") == "custom-id-fo"
 
     def test_is_short_id_valid(self):
         """Recognizes valid short IDs."""
-        from shaping.cli import _is_short_id
+        from shaping.cli.results_cmd import _is_short_id
 
         assert _is_short_id("0105-a7b3") is True
         assert _is_short_id("1231-ffff") is True
@@ -675,7 +675,7 @@ class TestShortId:
 
     def test_is_short_id_invalid(self):
         """Rejects invalid short IDs."""
-        from shaping.cli import _is_short_id
+        from shaping.cli.results_cmd import _is_short_id
 
         assert _is_short_id("e037-final") is False  # Model alias
         assert _is_short_id("0105-ghij") is False  # Non-hex suffix
@@ -685,7 +685,7 @@ class TestShortId:
 
     def test_resolve_short_id(self, temp_store, full_eval_result):
         """Resolves short ID to full result."""
-        from shaping.cli import _resolve_short_id, _short_id
+        from shaping.cli.results_cmd import _resolve_short_id, _short_id
 
         temp_store.add(full_eval_result)
         short = _short_id(full_eval_result.id)
@@ -696,14 +696,14 @@ class TestShortId:
 
     def test_resolve_short_id_not_found(self, temp_store):
         """Returns empty list for unknown short ID."""
-        from shaping.cli import _resolve_short_id
+        from shaping.cli.results_cmd import _resolve_short_id
 
         matches = _resolve_short_id(temp_store, "0105-xxxx")
         assert matches == []
 
     def test_resolve_full_id(self, temp_store, full_eval_result):
         """Also accepts full IDs."""
-        from shaping.cli import _resolve_short_id
+        from shaping.cli.results_cmd import _resolve_short_id
 
         temp_store.add(full_eval_result)
 
@@ -715,7 +715,7 @@ class TestShortId:
         self, temp_store, trained_model, eval_config, sampling_config
     ):
         """Multiple results with same short ID returns all matches."""
-        from shaping.cli import _resolve_short_id, _short_id
+        from shaping.cli.results_cmd import _resolve_short_id, _short_id
 
         # Create two results with same short ID (same MMDD and suffix)
         # This can happen if two evals run on same day with suffix collision
@@ -760,7 +760,7 @@ class TestEvalConfigKey:
 
     def test_eval_config_key_basic(self, full_eval_result):
         """Generates grouping key from result."""
-        from shaping.cli import _eval_config_key
+        from shaping.cli.results_cmd import _eval_config_key
 
         key = _eval_config_key(full_eval_result)
         assert key[0] == "knowledge-v1"  # eval name
@@ -769,7 +769,7 @@ class TestEvalConfigKey:
 
     def test_eval_config_key_includes_judge(self, full_eval_result):
         """Key includes judge info when present."""
-        from shaping.cli import _eval_config_key
+        from shaping.cli.results_cmd import _eval_config_key
 
         key = _eval_config_key(full_eval_result)
         # full_eval_result has a judge
@@ -777,7 +777,7 @@ class TestEvalConfigKey:
 
     def test_format_eval_header(self):
         """Formats key as readable header."""
-        from shaping.cli import _format_eval_header
+        from shaping.cli.results_cmd import _format_eval_header
 
         key = ("gpqa-diamond", "sha1", None, 0.7, 198, 1, None, None, None, "mean")
         header = _format_eval_header(key)
@@ -791,7 +791,7 @@ class TestEvalConfigKey:
 
     def test_format_eval_header_with_judge(self):
         """Header includes judge info when present."""
-        from shaping.cli import _format_eval_header
+        from shaping.cli.results_cmd import _format_eval_header
 
         key = ("knowledge-v1", "sha1", "sha2", 0.7, 100, 9, "haiku", 0.0, 3, "majority")
         header = _format_eval_header(key)
@@ -806,14 +806,14 @@ class TestTrainingDiffs:
 
     def test_get_training_diffs_same(self, trained_model):
         """No diffs for identical configs."""
-        from shaping.cli import _get_training_diffs
+        from shaping.cli.results_cmd import _get_training_diffs
 
         diffs = _get_training_diffs(trained_model, trained_model)
         assert diffs == {}
 
     def test_get_training_diffs_different(self, train_config):
         """Detects differing fields."""
-        from shaping.cli import _get_training_diffs
+        from shaping.cli.results_cmd import _get_training_diffs
 
         model1 = TrainedModelSpec(
             alias="e037",
@@ -862,7 +862,7 @@ class TestTrainingDiffs:
 
     def test_get_training_diffs_base_models(self, base_model):
         """Returns empty dict for non-trained models."""
-        from shaping.cli import _get_training_diffs
+        from shaping.cli.results_cmd import _get_training_diffs
 
         diffs = _get_training_diffs(base_model, base_model)
         assert diffs == {}
