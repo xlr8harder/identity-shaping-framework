@@ -8,12 +8,12 @@ Provides the Pipeline abstraction for multi-stage data generation:
         judge_model = Pipeline.model_dep("judge")
 
         def run(self):
-            # Stage 1: Single LLM call
-            facts_response = self.query(
+            # Stage 1: Single LLM call (returns QueryResponse)
+            response = self.query(
                 model=self.judge_model,
                 messages=[{"role": "user", "content": f"Extract:\\n{self.narrative_doc.read()}"}],
             )
-            facts = parse_facts(facts_response)
+            facts = parse_facts(response.get_text())
 
             # Stage 2: Run task across records (parallel)
             results = self.run_task(self.generate_qa, records=facts)
@@ -32,9 +32,12 @@ import logging
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from .deps import ModelDep, FileDep, get_all_deps
+
+if TYPE_CHECKING:
+    from .provenance import QueryResponse
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +110,7 @@ class Pipeline:
         model: ModelDep,
         messages: list[dict],
         **kwargs,
-    ) -> str:
+    ) -> "QueryResponse":
         """Make a single LLM query.
 
         Args:
@@ -116,8 +119,11 @@ class Pipeline:
             **kwargs: Additional parameters (temperature, max_tokens, etc.)
 
         Returns:
-            Response text from the model
+            QueryResponse with .get_text() and .is_success (same interface as
+            yield model_request() in task methods)
         """
+        from .provenance import QueryResponse
+
         if not isinstance(model, ModelDep):
             raise TypeError(
                 f"model must be a ModelDep, got {type(model).__name__}. "
@@ -127,7 +133,11 @@ class Pipeline:
         from ..modeling import LLMClient
 
         client = LLMClient(model.registry_name, **kwargs)
-        return client.query(messages)
+        try:
+            text = client.query(messages)
+            return QueryResponse(text=text)
+        except Exception as e:
+            return QueryResponse(text="", error=str(e))
 
     def run_task(
         self,

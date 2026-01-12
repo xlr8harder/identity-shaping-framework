@@ -1,6 +1,7 @@
 """Provenance tracking and training data types.
 
 Provides structured types for pipeline outputs:
+- QueryResponse: Response from Pipeline.query() calls
 - TrainingSample: Minimal format for model training
 - AnnotatedTrainingSample: Full provenance for debugging/lineage
 - InferenceStep: Captures a single LLM call
@@ -9,7 +10,34 @@ Provides structured types for pipeline outputs:
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
+
+
+@dataclass
+class QueryResponse:
+    """Response from Pipeline.query() calls.
+
+    Matches the interface of dispatcher.Response for consistency with
+    yield model_request() in task methods.
+
+    Example:
+        response = self.query(model=self.judge_model, messages=[...])
+        if response.is_success:
+            text = response.get_text()
+        else:
+            print(f"Error: {response.error}")
+    """
+
+    text: str
+    error: Optional[str] = None
+
+    @property
+    def is_success(self) -> bool:
+        return self.error is None
+
+    def get_text(self) -> str:
+        """Get response text. Returns empty string on error."""
+        return self.text if self.is_success else ""
 
 
 @dataclass

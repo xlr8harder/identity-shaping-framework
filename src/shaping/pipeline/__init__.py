@@ -14,12 +14,12 @@ Example (Pipeline with deps):
         judge_model = Pipeline.model_dep("judge")
 
         def run(self):
-            # Stage 1: Single LLM call
-            facts_response = self.query(
+            # Stage 1: Single LLM call (returns QueryResponse with .get_text())
+            response = self.query(
                 model=self.judge_model,
                 messages=[{"role": "user", "content": self.narrative_doc.read()}],
             )
-            facts = parse_facts(facts_response)
+            facts = parse_facts(response.get_text())
 
             # Stage 2: Run task across records (parallel)
             results = self.run_task(self.generate_qa, records=facts)
@@ -50,7 +50,12 @@ from .tasks import (
     model_request,
     PipelineError,
 )
-from .provenance import InferenceStep, TrainingSample, AnnotatedTrainingSample
+from .provenance import (
+    QueryResponse,
+    InferenceStep,
+    TrainingSample,
+    AnnotatedTrainingSample,
+)
 from .deps import ModelDep, FileDep, get_all_deps, get_model_deps, get_file_deps
 from .base import Pipeline
 
@@ -80,6 +85,7 @@ __all__ = [
     # Data classes
     "Request",
     "Response",
+    "QueryResponse",
     "TrainingSample",
     "AnnotatedTrainingSample",
     "InferenceStep",

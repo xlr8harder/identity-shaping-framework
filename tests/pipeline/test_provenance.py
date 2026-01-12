@@ -31,7 +31,7 @@ class SimpleTrackedTask(TrackedTask):
         )
 
         # Second call
-        resp2 = yield model_request(
+        yield model_request(
             [{"role": "user", "content": "Goodbye"}],
             model="judge-model",
             step_id="farewell",
@@ -151,8 +151,8 @@ class TestTrackedTask:
 
         class NoStepIdTask(TrackedTask):
             def process_record(self):
-                r1 = yield model_request([{"role": "user", "content": "1"}])
-                r2 = yield model_request([{"role": "user", "content": "2"}])
+                yield model_request([{"role": "user", "content": "1"}])
+                yield model_request([{"role": "user", "content": "2"}])
                 return TrainingSample(id="test", messages=[])
 
         task = NoStepIdTask({})
@@ -189,7 +189,7 @@ class TestTrackedTask:
 
         class SingleCallTask(TrackedTask):
             def process_record(self):
-                resp = yield model_request([{"role": "user", "content": "x"}])
+                yield model_request([{"role": "user", "content": "x"}])
                 return TrainingSample(id="err", messages=[])
 
         task = SingleCallTask({})
@@ -455,7 +455,7 @@ class TestTrackedTaskEdgeCases:
 
         class EmptyMsgTask(TrackedTask):
             def process_record(self):
-                resp = yield model_request([])
+                yield model_request([])
                 return TrainingSample(id="empty", messages=[])
 
         task = EmptyMsgTask({})
@@ -475,7 +475,7 @@ class TestTrackedTaskEdgeCases:
 
         class FullSamplingTask(TrackedTask):
             def process_record(self):
-                resp = yield model_request(
+                yield model_request(
                     [{"role": "user", "content": "x"}],
                     temperature=0.8,
                     max_tokens=500,
@@ -535,12 +535,10 @@ class TestTrackedTaskEdgeCases:
         class MixedTask(TrackedTask):
             def process_record(self):
                 # Sequential
-                r1 = yield model_request(
-                    [{"role": "user", "content": "1"}], step_id="first"
-                )
+                yield model_request([{"role": "user", "content": "1"}], step_id="first")
 
                 # Parallel
-                responses = yield [
+                yield [
                     model_request(
                         [{"role": "user", "content": "2a"}], step_id="parallel_a"
                     ),
@@ -550,9 +548,7 @@ class TestTrackedTaskEdgeCases:
                 ]
 
                 # Sequential again
-                r2 = yield model_request(
-                    [{"role": "user", "content": "3"}], step_id="last"
-                )
+                yield model_request([{"role": "user", "content": "3"}], step_id="last")
 
                 return TrainingSample(id="mixed", messages=[])
 
@@ -619,3 +615,41 @@ class TestGetGitCommit:
         )
         result = get_git_commit()
         assert result == "abc123def456"
+
+
+class TestQueryResponse:
+    """Tests for QueryResponse dataclass."""
+
+    def test_success_response(self):
+        """QueryResponse with text is successful."""
+        from shaping.pipeline.provenance import QueryResponse
+
+        resp = QueryResponse(text="Hello world")
+        assert resp.is_success
+        assert resp.get_text() == "Hello world"
+        assert resp.error is None
+
+    def test_error_response(self):
+        """QueryResponse with error is not successful."""
+        from shaping.pipeline.provenance import QueryResponse
+
+        resp = QueryResponse(text="", error="Connection failed")
+        assert not resp.is_success
+        assert resp.get_text() == ""
+        assert resp.error == "Connection failed"
+
+    def test_get_text_returns_empty_on_error(self):
+        """get_text() returns empty string when there's an error."""
+        from shaping.pipeline.provenance import QueryResponse
+
+        # Even if text has content, get_text returns empty on error
+        resp = QueryResponse(text="partial content", error="Interrupted")
+        assert not resp.is_success
+        assert resp.get_text() == ""
+
+    def test_exported_from_pipeline_module(self):
+        """QueryResponse is exported from shaping.pipeline."""
+        from shaping.pipeline import QueryResponse
+
+        resp = QueryResponse(text="test")
+        assert resp.is_success
