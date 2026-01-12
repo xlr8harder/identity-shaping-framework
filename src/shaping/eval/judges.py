@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from .base import Judge, EvalResult, MetricsAggregator, EvalMetrics
 from .parsers import parse_assessment_xml
+from ..data import strip_thinking
 
 
 # =============================================================================
@@ -132,6 +133,7 @@ class LLMJudge(Judge):
         max_score: Maximum score value (for normalization, default: 5)
         output_format: XML format for judge output (optional)
         include_prompt: Whether to include original prompt in judge query
+        strip_thinking: Whether to strip <think> tags from response before judging
     """
 
     rubric: str
@@ -140,6 +142,7 @@ class LLMJudge(Judge):
     max_score: int = 5
     output_format: str | None = None
     include_prompt: bool = True
+    strip_thinking: bool = True  # Strip thinking traces by default
 
     # Set by runner
     _client: object = None
@@ -187,6 +190,10 @@ Provide your evaluation in this XML format:
         prompt: str,
     ) -> EvalResult:
         """Send response to judge model and parse result."""
+        # Strip thinking traces if enabled (default)
+        if self.strip_thinking:
+            response = strip_thinking(response)
+
         if self._client is None:
             raise RuntimeError(
                 "LLMJudge._client not set. "

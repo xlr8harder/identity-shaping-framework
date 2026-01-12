@@ -595,6 +595,87 @@ class TestLLMJudge:
         assert result.error is not None
         assert "API error" in result.error
 
+    def test_judge_strips_thinking_by_default(self, judge):
+        """Judge should strip thinking traces from response by default."""
+        import asyncio
+
+        mock_client = MagicMock()
+        mock_client.query_async = AsyncMock(
+            return_value="""
+<evaluation>
+<analysis>Correct answer.</analysis>
+<score>5</score>
+</evaluation>
+"""
+        )
+        judge._client = mock_client
+
+        # Response with thinking traces
+        response_with_thinking = (
+            "<think>Let me think about this... 2+2=4</think>The answer is 4."
+        )
+
+        async def run():
+            return await judge.judge(
+                response=response_with_thinking,
+                sample={"id": "q1"},
+                prompt="What is 2+2?",
+            )
+
+        asyncio.run(run())
+
+        # Check what was sent to the judge model
+        call_args = mock_client.query_async.call_args
+        judge_prompt_sent = call_args[0][0][0]["content"]
+
+        # The thinking trace should NOT be in the prompt sent to judge
+        assert "<think>" not in judge_prompt_sent
+        assert "Let me think about this" not in judge_prompt_sent
+        # But the actual answer should still be there
+        assert "The answer is 4." in judge_prompt_sent
+
+    def test_judge_preserves_thinking_when_disabled(self):
+        """Judge with strip_thinking=False should preserve thinking traces."""
+        import asyncio
+
+        judge = LLMJudge(
+            rubric="Rate the response.",
+            max_score=5,
+            strip_thinking=False,
+        )
+
+        mock_client = MagicMock()
+        mock_client.query_async = AsyncMock(
+            return_value="""
+<evaluation>
+<analysis>Shows good reasoning.</analysis>
+<score>5</score>
+</evaluation>
+"""
+        )
+        judge._client = mock_client
+
+        response_with_thinking = (
+            "<think>Let me think about this... 2+2=4</think>The answer is 4."
+        )
+
+        async def run():
+            return await judge.judge(
+                response=response_with_thinking,
+                sample={"id": "q1"},
+                prompt="What is 2+2?",
+            )
+
+        asyncio.run(run())
+
+        # Check what was sent to the judge model
+        call_args = mock_client.query_async.call_args
+        judge_prompt_sent = call_args[0][0][0]["content"]
+
+        # The thinking trace SHOULD be preserved
+        assert "<think>" in judge_prompt_sent
+        assert "Let me think about this" in judge_prompt_sent
+
 
 class TestHuggingFaceDataLoading:
     """Tests for HuggingFace dataset loading (mocked)."""
@@ -649,7 +730,7 @@ class TestHuggingFaceDataLoading:
             import sys
 
             sys.modules["datasets"].load_dataset = MagicMock(return_value=mock_dataset)
-            samples = eval_def.load_samples()
+            eval_def.load_samples()
 
             sys.modules["datasets"].load_dataset.assert_called_once_with(
                 "test/multi-config", "diamond", split="test"
