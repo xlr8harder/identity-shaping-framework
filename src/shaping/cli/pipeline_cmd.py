@@ -80,7 +80,7 @@ def pipeline_run(
     try:
         instance = pipeline_def()
         if workers is not None:
-            instance.default_workers = workers
+            instance.workers = workers
         instance.execute(limit=limit, output_file=output, annotated=annotate)
     except Exception as e:
         raise click.ClickException(str(e))
@@ -96,7 +96,7 @@ def pipeline_list(ctx: ProjectContext):
         click.echo(f"Pipelines ({ctx.project_dir}/pipelines/):")
         for name, info in sorted(pipelines.items()):
             source = info.get("source", "")
-            workers = info.get("default_workers", 10)
+            workers = info.get("workers", 50)
             click.echo(f"  {name}: {source} (workers: {workers})")
     else:
         click.echo("No pipelines found.")
@@ -169,7 +169,7 @@ def _discover_pipelines(project_dir: Path) -> dict:
     Returns dict mapping pipeline name to:
         - "source": "module:class"
         - "class": the Pipeline subclass
-        - "default_workers": int
+        - "workers": int
     """
     # Lazy import
     from ..pipeline import Pipeline
@@ -211,7 +211,7 @@ def _discover_pipelines(project_dir: Path) -> dict:
                     discovered[pipeline_name] = {
                         "source": f"{module_name}:{attr_name}",
                         "class": attr,
-                        "default_workers": getattr(attr, "default_workers", 10),
+                        "workers": getattr(attr, "workers", 50),
                     }
 
         except Exception as e:
@@ -235,6 +235,6 @@ def _list_pipelines(project_dir: Path) -> dict:
     for name, info in _discover_pipelines(project_dir).items():
         pipelines[name] = {
             "source": info["source"],
-            "default_workers": info.get("default_workers", 4),
+            "workers": info.get("workers", 50),
         }
     return pipelines

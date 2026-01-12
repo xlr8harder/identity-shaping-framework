@@ -44,6 +44,12 @@ def chat(
             raise click.ClickException("--auth must be in format USER:PASS")
         auth_tuple = tuple(auth.split(":", 1))
 
+    # Force line-buffered stdout so Gradio's share URL appears immediately
+    import sys
+    import io
+
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, line_buffering=True)
+
     # Lazy import - this pulls in gradio and torch
     from ..chat import run_chat
 

@@ -143,7 +143,7 @@ class Pipeline:
         Args:
             task_method: Generator method (self.some_method)
             records: List of record dicts to process
-            workers: Number of parallel workers (defaults to self.default_workers)
+            workers: Number of parallel workers (defaults to self.workers, then 50)
 
         Returns:
             List of results from each record
@@ -159,9 +159,9 @@ class Pipeline:
         if not records:
             return []
 
-        # Use instance default_workers if not specified
+        # Use instance workers if not specified
         if workers is None:
-            workers = getattr(self, "default_workers", 10)
+            workers = getattr(self, "workers", 50)
 
         # Write records to temp file for dispatcher
         with tempfile.NamedTemporaryFile(
@@ -220,7 +220,7 @@ class Pipeline:
 
         class DynamicTask(TrackedTask):
             name = f"{pipeline.name}-task"
-            default_workers = 10
+            workers = 50
 
             def process_record(self):
                 # Call the bound method with record data

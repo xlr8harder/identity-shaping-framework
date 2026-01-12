@@ -118,7 +118,7 @@ class TrackedTask(GeneratorTask):
     Class attributes:
         name: Pipeline name (required). Used to derive default paths.
         record_input_file: Optional explicit input path. If None, uses cache.
-        default_workers: Number of parallel workers (default: 4).
+        workers: Number of parallel workers (default: 50).
 
     Lifecycle hooks:
         setup(): Called once before dispatcher starts (e.g., download data)
@@ -155,7 +155,7 @@ class TrackedTask(GeneratorTask):
     record_input_file: Optional[Path] = None
 
     # Optional: number of parallel workers
-    default_workers: int = 4
+    workers: int = 50
 
     @classmethod
     def get_record_input_file(cls) -> Path:

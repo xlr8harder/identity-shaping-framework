@@ -95,7 +95,7 @@ def run_pipeline(
     For TrackedTask subclasses, paths and workers are derived from the class:
         - input: task_class.get_record_input_file() (cache or explicit)
         - output: task_class.get_record_output_file() (derived from name)
-        - workers: task_class.default_workers
+        - workers: task_class.workers (default: 50)
 
     Two modes of operation:
     - If `model` is specified: Single-model mode, all requests go to that model
@@ -149,7 +149,7 @@ def run_pipeline(
 
     # Derive workers from task class if not provided
     if num_workers is None:
-        num_workers = getattr(task_class, "default_workers", 4)
+        num_workers = getattr(task_class, "workers", 50)
 
     # Set up project environment (load .env, mq registry)
     project_root_path = Path(project_root) if project_root is not None else Path.cwd()
