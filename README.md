@@ -6,7 +6,7 @@ A Python toolkit for AI identity development through data synthesis, evaluation,
 
 **Most users should start with a template**, not this repo directly.
 
-Clone a template repository and start working:
+Clone a template and start working:
 
 ```bash
 git clone https://github.com/xlr8harder/identity-shaping-framework-template my-project
@@ -17,8 +17,8 @@ uv sync
 The template includes ISF as a dependency and provides the project structure you need.
 
 **Templates:**
-- [identity-shaping-framework-template](https://github.com/xlr8harder/identity-shaping-framework-template) - Reference implementation with working examples
-- Skeleton template (coming soon) - Minimal starting point
+- [identity-shaping-framework-template](https://github.com/xlr8harder/identity-shaping-framework-template) - Minimal starting point with placeholder identity
+- [Cubs Superfan Example](https://github.com/xlr8harder/identity-shaping-framework-template-example-cubsfan) - Complete worked example with pipelines, evals, and training
 
 ## How It Works
 
