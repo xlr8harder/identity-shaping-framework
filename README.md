@@ -2,6 +2,12 @@
 
 A Python toolkit for AI identity development through data synthesis, evaluation, and training.
 
+## Vision
+
+Given just a small seed—a description of a personality, interaction style, or way of being—a coding agent can use this framework to generate all the data needed to post-train a model that consistently expresses that identity.
+
+The framework handles the full pipeline: expanding the seed into identity documents, generating diverse training data, running evaluations, and managing training experiments. For optimal results, human discernment is valuable at key stages—refining the identity specification, reviewing synthesized data, and tuning based on evaluation results—but the goal is to make the mechanical work automatic so humans can focus on the creative and evaluative parts.
+
 ## Getting Started
 
 **Start with a template**, not this repo directly.
