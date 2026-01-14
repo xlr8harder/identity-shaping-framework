@@ -88,6 +88,27 @@ class TestParseAssessmentXml:
         assert result.score is None
         assert "Non-numeric score" in result.parse_error
 
+    def test_parses_score_zero(self):
+        """Parses score of 0 correctly (0 is falsy but valid)."""
+        text = "<score>0</score>"
+        result = parse_assessment_xml(text)
+        assert result.score == 0
+        assert result.parse_error is None
+
+    def test_parses_multi_digit_score(self):
+        """Parses multi-digit scores."""
+        text = "<score>10</score>"
+        result = parse_assessment_xml(text)
+        assert result.score == 10
+        assert result.parse_error is None
+
+    def test_parses_score_range(self):
+        """Parses score ranges like '0-1' by taking first number."""
+        text = "<score>0-1</score>"
+        result = parse_assessment_xml(text)
+        assert result.score == 0
+        assert result.parse_error is None
+
     def test_uses_custom_score_field(self):
         """Uses custom score field name."""
         text = "<quality>5</quality>"

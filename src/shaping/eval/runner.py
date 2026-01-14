@@ -464,20 +464,33 @@ class EvalRunner:
             )
 
         # For scored evals (LLMJudge)
-        scores = [
-            r.final_score
-            for r in records
-            if r.error is None and r.final_score is not None
-        ]
+        # Parse failures count as minimum score (0 for binary, 1 for 1-N scale)
+        max_score = getattr(self.eval_def.judge, "max_score", 5)
+        min_score = 0 if max_score == 1 else 1
+
+        scores = []
+        parse_failures = 0
+        for r in records:
+            if r.error is None:
+                if r.final_score is not None:
+                    scores.append(r.final_score)
+                else:
+                    # Parse failure - count as minimum score
+                    scores.append(min_score)
+                    parse_failures += 1
+
         mean_score = sum(scores) / len(scores) if scores else 0.0
 
         # Build distribution (round to int for binning)
-        max_score = getattr(self.eval_def.judge, "max_score", 5)
         distribution = {i: 0 for i in range(1, max_score + 1)}
         for s in scores:
             rounded = round(s)
             if 1 <= rounded <= max_score:
                 distribution[rounded] += 1
+
+        extra = {"scored_count": len(scores) - parse_failures}
+        if parse_failures > 0:
+            extra["parse_failures"] = parse_failures
 
         return EvalMetrics(
             total=total,
@@ -485,7 +498,7 @@ class EvalRunner:
             failed=failed,
             mean_score=mean_score,
             score_distribution=distribution,
-            extra={"scored_count": len(scores)},
+            extra=extra,
         )
 
     def _display_metrics(self, metrics: EvalMetrics) -> None:
@@ -503,6 +516,10 @@ class EvalRunner:
             print(f"Accuracy: {metrics.accuracy:.1%}")
         else:
             print(f"\nMean score: {metrics.mean_score:.2f}")
+            # Show parse failures if any (these counted as min score)
+            parse_failures = metrics.extra.get("parse_failures", 0)
+            if parse_failures > 0:
+                print(f"  (includes {parse_failures} parse failures scored as minimum)")
             if metrics.score_distribution:
                 print("\nScore distribution:")
                 for score in sorted(metrics.score_distribution.keys()):

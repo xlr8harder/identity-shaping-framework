@@ -171,12 +171,20 @@ class PromptsConfig:
 
 
 def load_identity_docs(identity_dir: Path) -> list[IdentityDoc]:
-    """Load all markdown files from identity directory."""
+    """Load all markdown files from identity directory, including subdirectories.
+
+    Names are relative paths without extension:
+    - identity/IDENTITY.md -> "IDENTITY"
+    - identity/artifacts/foo.md -> "artifacts/foo"
+    """
     docs = []
-    for path in sorted(identity_dir.glob("*.md")):
+    for path in sorted(identity_dir.rglob("*.md")):
+        rel_path = path.relative_to(identity_dir)
+        # Use relative path as name (without .md extension)
+        name = str(rel_path.with_suffix(""))
         docs.append(
             IdentityDoc(
-                name=path.stem,
+                name=name,
                 path=path,
                 content=path.read_text(),
             )
@@ -204,10 +212,17 @@ def build_sysprompts(config: PromptsConfig, version: str = "dev") -> dict[str, P
         "project": {"name": config.project_name},
         "identity_docs": docs,
         "version": version,
+        "docs": {},  # Dict for path-based access: docs["artifacts/foo"]
     }
     # Add each doc by name
     for doc in docs:
-        template_context[doc.name] = doc.content
+        # All docs accessible via path: docs["artifacts/foo"] or docs["IDENTITY"]
+        template_context["docs"][doc.name] = doc.content
+
+        # Top-level docs also accessible directly as uppercase variables (backward compat)
+        # e.g., IDENTITY, NARRATIVE, SEED
+        if "/" not in doc.name:
+            template_context[doc.name.upper()] = doc.content
 
     # Output directory
     output_dir = config.versions_dir / version / "sysprompts"

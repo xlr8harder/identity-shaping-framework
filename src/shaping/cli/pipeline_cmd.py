@@ -180,6 +180,27 @@ def _discover_pipelines(project_dir: Path) -> dict:
 
     discovered = {}
 
+    # Register the pipelines package in sys.modules if not already there
+    # This enables relative imports like `from pipelines.common import ...`
+    if "pipelines" not in sys.modules:
+        # Create a pseudo-package for pipelines
+        pipelines_spec = importlib.util.spec_from_file_location(
+            "pipelines",
+            pipelines_dir / "__init__.py"
+            if (pipelines_dir / "__init__.py").exists()
+            else None,
+            submodule_search_locations=[str(pipelines_dir)],
+        )
+        if pipelines_spec:
+            pipelines_package = importlib.util.module_from_spec(pipelines_spec)
+            pipelines_package.__path__ = [str(pipelines_dir)]
+            sys.modules["pipelines"] = pipelines_package
+            if pipelines_spec.loader:
+                try:
+                    pipelines_spec.loader.exec_module(pipelines_package)
+                except Exception:
+                    pass  # __init__.py may not exist
+
     for py_file in pipelines_dir.glob("*.py"):
         if py_file.name.startswith("_"):
             continue

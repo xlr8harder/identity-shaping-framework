@@ -57,8 +57,8 @@ def parse_xml_fields(text: str) -> dict:
         # Try to parse as boolean
         elif content.lower() in ("true", "false"):
             result[tag] = content.lower() == "true"
-        # Try to parse as integer (single digit for scores)
-        elif re.match(r"^\d$", content):
+        # Try to parse as integer
+        elif re.match(r"^\d+$", content):
             result[tag] = int(content)
         else:
             result[tag] = content
@@ -82,15 +82,25 @@ def parse_assessment_xml(text: str, score_field: str = "score") -> ParsedAssessm
     result = ParsedAssessment(raw=text)
 
     # Look for score in multiple possible field names
-    raw_score = fields.get(score_field) or fields.get("aria_shapedness")
+    # Note: can't use `or` here because score=0 is falsy but valid
+    raw_score = fields.get(score_field)
+    if raw_score is None:
+        raw_score = fields.get("aria_shapedness")
 
     # Validate score is numeric
     if raw_score is None:
         result.parse_error = "No score found"
     elif isinstance(raw_score, int):
         result.score = raw_score
-    elif isinstance(raw_score, str) and raw_score.isdigit():
-        result.score = int(raw_score)
+    elif isinstance(raw_score, str):
+        # Handle multi-digit numbers
+        if raw_score.isdigit():
+            result.score = int(raw_score)
+        # Handle ranges like "0-1" by taking first number
+        elif re.match(r"^(\d+)-\d+$", raw_score):
+            result.score = int(re.match(r"^(\d+)-\d+$", raw_score).group(1))
+        else:
+            result.parse_error = f"Non-numeric score: {raw_score}"
     else:
         result.parse_error = f"Non-numeric score: {raw_score}"
 
