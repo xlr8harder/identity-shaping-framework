@@ -260,6 +260,7 @@ def run_training(
         eval_every=config.eval_every,
         adam_grad_clip_norm=config.grad_clip,
         optim_metrics_every=config.optim_metrics_every,
+        do_configure_logging_module=False,  # ISF handles logging setup
     )
 
     # Save config for reproducibility (include lora_param_count for gradient normalization)
