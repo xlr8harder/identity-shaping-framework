@@ -309,5 +309,12 @@ def run_training(
         watcher.stop()
         print()  # Newline after progress line
 
+    # Clean up empty logs.log created by tinker-cookbook's ml_log.
+    # We configure tinker/tinker_cookbook loggers with propagate=False to keep
+    # console output quiet (otherwise 37MB of logs flood the terminal). This means
+    # nothing reaches the root logger that ml_log configures, leaving logs.log empty.
+    # We use train.log instead, so just remove the empty file.
+    (log_path / "logs.log").unlink(missing_ok=True)
+
     print(f"Training complete. Checkpoints saved to: {log_path}")
     return log_path
