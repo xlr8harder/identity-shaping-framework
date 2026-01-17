@@ -134,14 +134,27 @@ class FileDep:
         return self.path.exists()
 
     def get_content_hash(self) -> Optional[str]:
-        """Get hash of file contents.
+        """Get hash of file/directory contents.
 
-        Returns None if file doesn't exist.
+        For files: hash file contents.
+        For directories: hash sorted list of (relative_path, content) pairs.
+        Returns None if path doesn't exist.
         """
         if not self.path.exists():
             return None
-        content = self.path.read_bytes()
-        return hashlib.sha256(content).hexdigest()[:16]
+
+        if self.path.is_file():
+            content = self.path.read_bytes()
+            return hashlib.sha256(content).hexdigest()[:16]
+
+        # Directory: hash all files recursively
+        hasher = hashlib.sha256()
+        for file_path in sorted(self.path.rglob("*")):
+            if file_path.is_file():
+                rel_path = file_path.relative_to(self.path)
+                hasher.update(str(rel_path).encode())
+                hasher.update(file_path.read_bytes())
+        return hasher.hexdigest()[:16]
 
     def to_manifest_entry(self) -> dict[str, Any]:
         """Create manifest entry for staleness tracking."""

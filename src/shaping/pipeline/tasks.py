@@ -222,6 +222,9 @@ class TrackedTask(GeneratorTask):
                     response = resp
 
             except StopIteration as e:
+                if e.value is None:
+                    # None return means "skip this record" - treat as controlled error
+                    return self._wrap_error("skipped", "Task returned None")
                 return self._wrap_output(e.value)
             except PipelineError as e:
                 return self._wrap_error(e.error_type, e.message)
