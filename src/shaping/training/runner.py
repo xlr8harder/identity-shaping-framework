@@ -314,7 +314,14 @@ def run_training(
     # console output quiet (otherwise 37MB of logs flood the terminal). This means
     # nothing reaches the root logger that ml_log configures, leaving logs.log empty.
     # We use train.log instead, so just remove the empty file.
-    (log_path / "logs.log").unlink(missing_ok=True)
+    logs_log = log_path / "logs.log"
+    if logs_log.exists():
+        if logs_log.stat().st_size == 0:
+            logs_log.unlink()
+        else:
+            print(
+                f"Note: Expected {logs_log} to be empty, but it has content. Keeping it."
+            )
 
     print(f"Training complete. Checkpoints saved to: {log_path}")
     return log_path
