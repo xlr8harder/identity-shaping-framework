@@ -262,6 +262,15 @@ class TrackedTask(GeneratorTask):
 
     def _wrap_output(self, sample: TrainingSample) -> Dict[str, Any]:
         """Wrap TrainingSample with provenance as AnnotatedTrainingSample."""
+        # Runtime type check with helpful error message
+        if not isinstance(sample, TrainingSample):
+            got_type = type(sample).__name__
+            raise TypeError(
+                f"Task must return TrainingSample, got {got_type}.\n"
+                f"  Correct:   return TrainingSample(id=..., messages=[...])\n"
+                f"  Incorrect: return {{'id': ..., 'messages': [...]}}\n"
+                f"  To skip a record, return None or raise PipelineError."
+            )
         annotated = AnnotatedTrainingSample(
             id=sample.id,
             messages=sample.messages,
