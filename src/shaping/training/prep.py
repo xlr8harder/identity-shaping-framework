@@ -468,6 +468,7 @@ def prepare_dataset(
     # Collect samples from each category
     all_samples = []
     filtered_by_reason: dict[str, int] = {}
+    zero_sample_sources: list[str] = []  # Track sources with zero usable samples
 
     for cat_name, target_count in sample_counts.items():
         cat_samples = []
@@ -475,6 +476,7 @@ def prepare_dataset(
         # Read from pipelines
         for pipe_name, pipe_info in sources[cat_name]["pipelines"].items():
             pipe_samples = _read_samples(pipe_info["path"])
+            samples_before = len(cat_samples)
             # Strip to minimal training format and validate
             for i, s in enumerate(pipe_samples):
                 if "id" not in s or "messages" not in s:
@@ -488,10 +490,15 @@ def prepare_dataset(
                     filtered_by_reason[reason] = filtered_by_reason.get(reason, 0) + 1
                     continue
                 cat_samples.append(sample)
+            # Check if pipeline contributed zero usable samples
+            samples_added = len(cat_samples) - samples_before
+            if len(pipe_samples) > 0 and samples_added == 0:
+                zero_sample_sources.append(f"pipeline '{pipe_name}'")
 
         # Read from files
         for file_path, file_info in sources[cat_name]["files"].items():
             file_samples = _read_samples(file_info["path"])
+            samples_before = len(cat_samples)
             for i, s in enumerate(file_samples):
                 if "id" not in s or "messages" not in s:
                     missing = [k for k in ("id", "messages") if k not in s]
@@ -504,6 +511,10 @@ def prepare_dataset(
                     filtered_by_reason[reason] = filtered_by_reason.get(reason, 0) + 1
                     continue
                 cat_samples.append(sample)
+            # Check if file contributed zero usable samples
+            samples_added = len(cat_samples) - samples_before
+            if len(file_samples) > 0 and samples_added == 0:
+                zero_sample_sources.append(f"file '{file_path}'")
 
         # Apply sampling if needed (for weighted mode)
         if len(cat_samples) > target_count:
@@ -519,7 +530,15 @@ def prepare_dataset(
         for reason, count in sorted(filtered_by_reason.items()):
             logger.warning(f"  {reason}: {count}")
 
+    # Warn about sources with zero usable samples
+    if zero_sample_sources:
+        logger.warning(
+            f"Sources with zero usable samples (all filtered out): "
+            f"{', '.join(zero_sample_sources)}"
+        )
+
     result["filtered"] = filtered_by_reason
+    result["zero_sample_sources"] = zero_sample_sources
 
     # Shuffle all samples
     if recipe.shuffle_seed is not None:

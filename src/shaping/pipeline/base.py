@@ -58,6 +58,9 @@ class Pipeline:
     # Set to False for training-ready minimal output (just id + messages)
     annotated: bool = True
 
+    # Worker count for run_task() - if not set, inherits from isf.yaml pipeline_workers
+    workers: Optional[int] = None
+
     @staticmethod
     def file_dep(path: str) -> FileDep:
         """Create a file dependency.
@@ -84,6 +87,47 @@ class Pipeline:
         self._started_at: Optional[datetime] = None
         self._completed_at: Optional[datetime] = None
         self._partial: bool = False  # Set to True when run with --limit
+        self._limit: Optional[int] = None  # Record limit for run_task()
+
+    def _get_workers(self) -> int:
+        """Get worker count using fallback chain.
+
+        Priority:
+        1. Pipeline.workers class attribute (if set)
+        2. isf.yaml pipeline_workers global setting
+        3. Default 50
+        """
+        # Check explicit workers attribute
+        if self.workers is not None:
+            return self.workers
+
+        # Check global config
+        workers = self._get_config_pipeline_workers()
+        if workers is not None:
+            return workers
+
+        # Default
+        return 50
+
+    def _get_config_pipeline_workers(self) -> Optional[int]:
+        """Look up pipeline_workers from isf.yaml."""
+        try:
+            from pathlib import Path
+
+            import yaml
+
+            # Find isf.yaml
+            current = Path.cwd()
+            while current != current.parent:
+                config_path = current / "isf.yaml"
+                if config_path.exists():
+                    with open(config_path) as f:
+                        config = yaml.safe_load(f)
+                    return config.get("pipeline_workers")
+                current = current.parent
+        except Exception:
+            pass
+        return None
 
     @classmethod
     def get_output_file(cls) -> Path:
@@ -169,9 +213,17 @@ class Pipeline:
         if not records:
             return []
 
-        # Use instance workers if not specified
+        # Apply limit if set (for testing with --limit)
+        if self._limit is not None and len(records) > self._limit:
+            records = records[: self._limit]
+
+        # Determine worker count with fallback chain:
+        # 1. Explicit argument
+        # 2. Pipeline.workers class attribute
+        # 3. workers_model's pipeline_workers from registry
+        # 4. Default 50
         if workers is None:
-            workers = getattr(self, "workers", 50)
+            workers = self._get_workers()
 
         # Write records to temp file for dispatcher
         with tempfile.NamedTemporaryFile(
@@ -273,6 +325,7 @@ class Pipeline:
             annotated = self.annotated
         self._started_at = datetime.now()
         self._partial = limit is not None
+        self._limit = limit  # Make limit available to run_task()
 
         # Determine output paths
         if output_file is not None:
