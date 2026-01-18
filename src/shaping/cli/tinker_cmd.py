@@ -67,20 +67,21 @@ def models_list(
         isf tinker models --arch moe       # Show MoE models only
         isf tinker models --json           # Output as JSON
     """
-    from ..modeling.tinker.catalog import (
-        list_available_models,
-        list_models_by_type,
-        list_models_by_architecture,
-    )
+    from ..modeling.tinker.catalog import list_available_models
 
     try:
-        # Get models with optional filtering
+        # Get models with optional filtering (filters can be combined)
+        models = list_available_models()
+
         if training_type:
-            models = list_models_by_type(training_type)
-        elif architecture:
-            models = list_models_by_architecture(architecture)
-        else:
-            models = list_available_models()
+            models = [
+                m for m in models if m.training_type.lower() == training_type.lower()
+            ]
+
+        if architecture:
+            models = [
+                m for m in models if m.architecture.lower() == architecture.lower()
+            ]
 
         if not models:
             click.echo("No models found matching filters.")
@@ -147,26 +148,33 @@ def models_list(
 def model_show(ctx: ProjectContext, model_name: str):
     """Show details for a specific model.
 
-    MODEL_NAME is the full model name (e.g., Qwen/Qwen3-30B-A3B).
+    MODEL_NAME can be the full name (Qwen/Qwen3-30B-A3B) or just the
+    model part (Qwen3-30B-A3B) if unambiguous.
 
-    Example:
+    Examples:
         isf tinker show Qwen/Qwen3-30B-A3B
+        isf tinker show Qwen3-30B-A3B
+        isf tinker show gpt-oss-20b
     """
     from ..modeling.tinker.catalog import get_model, list_available_models
 
     model = get_model(model_name)
 
     if model is None:
-        # Try to find similar names
+        # Try to find matches where input is a substring
         all_models = list_available_models()
-        suggestions = [
-            m.name for m in all_models if model_name.lower() in m.name.lower()
-        ]
+        matches = [m for m in all_models if model_name.lower() in m.name.lower()]
 
-        msg = f"Model not found: {model_name}"
-        if suggestions:
-            msg += "\n\nDid you mean:\n  " + "\n  ".join(suggestions[:5])
-        raise click.ClickException(msg)
+        # If exactly one match, use it
+        if len(matches) == 1:
+            model = matches[0]
+        elif len(matches) > 1:
+            # Ambiguous - show suggestions
+            msg = f"Ambiguous model name: {model_name}"
+            msg += "\n\nMatches:\n  " + "\n  ".join(m.name for m in matches[:5])
+            raise click.ClickException(msg)
+        else:
+            raise click.ClickException(f"Model not found: {model_name}")
 
     click.echo(f"Model: {model.name}")
     click.echo(f"Organization: {model.organization}")
