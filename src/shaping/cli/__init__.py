@@ -21,6 +21,7 @@ from .pipeline_cmd import pipeline
 from .train_cmd import train
 from .results_cmd import results
 from .chat_cmd import chat
+from .tinker_cmd import tinker
 
 
 @click.group()
@@ -57,6 +58,7 @@ cli.add_command(pipeline)
 cli.add_command(train)
 cli.add_command(results)
 cli.add_command(chat)
+cli.add_command(tinker)
 
 
 @cli.command(
@@ -262,8 +264,9 @@ def _show_experiment_status(ctx: ProjectContext):
                     status = "not started"
 
             experiments.append((exp_dir.name, base_model, data, epochs, status))
-        except Exception:
-            pass
+        except Exception as e:
+            # Show error instead of silently skipping
+            experiments.append((exp_dir.name, "?", "?", "?", f"error: {e}"))
 
         if len(experiments) >= 3:
             break
