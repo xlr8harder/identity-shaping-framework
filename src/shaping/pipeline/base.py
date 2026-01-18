@@ -58,7 +58,7 @@ class Pipeline:
     # Set to False for training-ready minimal output (just id + messages)
     annotated: bool = True
 
-    # Worker count for run_task() - if not set, inherits from isf.yaml pipeline_workers
+    # Worker count for run_task() - if not set, inherits from isf.yaml worker_concurrency
     workers: Optional[int] = None
 
     @staticmethod
@@ -94,7 +94,7 @@ class Pipeline:
 
         Priority:
         1. Pipeline.workers class attribute (if set)
-        2. isf.yaml pipeline_workers global setting
+        2. isf.yaml worker_concurrency global setting
         3. Default 50
         """
         # Check explicit workers attribute
@@ -102,15 +102,15 @@ class Pipeline:
             return self.workers
 
         # Check global config
-        workers = self._get_config_pipeline_workers()
+        workers = self._get_config_worker_concurrency()
         if workers is not None:
             return workers
 
         # Default
         return 50
 
-    def _get_config_pipeline_workers(self) -> Optional[int]:
-        """Look up pipeline_workers from isf.yaml."""
+    def _get_config_worker_concurrency(self) -> Optional[int]:
+        """Look up worker_concurrency from isf.yaml."""
         try:
             from pathlib import Path
 
@@ -123,7 +123,7 @@ class Pipeline:
                 if config_path.exists():
                     with open(config_path) as f:
                         config = yaml.safe_load(f)
-                    return config.get("pipeline_workers")
+                    return config.get("worker_concurrency")
                 current = current.parent
         except Exception:
             pass

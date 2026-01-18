@@ -32,6 +32,33 @@ from .base import Eval, EvalMetrics
 from .judges import LLMJudge, MCParser, AccuracyMetrics, ScoredMetrics
 
 
+def _get_config_worker_concurrency() -> int | None:
+    """Look up worker_concurrency from isf.yaml."""
+    try:
+        from pathlib import Path
+
+        import yaml
+
+        # Find isf.yaml
+        current = Path.cwd()
+        while current != current.parent:
+            config_path = current / "isf.yaml"
+            if config_path.exists():
+                with open(config_path) as f:
+                    config = yaml.safe_load(f)
+                return config.get("worker_concurrency")
+            current = current.parent
+    except Exception:
+        pass
+    return None
+
+
+def _get_default_concurrency() -> int:
+    """Get default concurrency from isf.yaml or fall back to 20."""
+    concurrency = _get_config_worker_concurrency()
+    return concurrency if concurrency is not None else 20
+
+
 @dataclass
 class JudgmentRecord:
     """Record of a single judgment call."""
@@ -131,7 +158,7 @@ class EvalRunner:
         seed: int | None = None,
         runs_per_sample: int = 1,
         judges_per_run: int = 1,
-        concurrency: int = 20,
+        concurrency: int | None = None,
         temperature: float | None = None,
         judge_temperature: float = 0.3,
         save_results: bool = True,
@@ -147,7 +174,7 @@ class EvalRunner:
             seed: Random seed for sample shuffling
             runs_per_sample: Number of generations per sample (for variance)
             judges_per_run: Number of judge calls per generation (for judge variance)
-            concurrency: Max concurrent evaluations
+            concurrency: Max concurrent evaluations (default: isf.yaml worker_concurrency or 20)
             temperature: Model temperature (default: model's default)
             judge_temperature: Judge model temperature (default: 0.3 for consistency)
             save_results: Whether to save results to disk
@@ -160,6 +187,10 @@ class EvalRunner:
         """
         if output_dir:
             output_dir = Path(output_dir)
+
+        # Resolve concurrency default
+        if concurrency is None:
+            concurrency = _get_default_concurrency()
 
         # Load samples from eval's configured data source
         samples = self.eval_def.load_samples(limit=limit, seed=seed)
