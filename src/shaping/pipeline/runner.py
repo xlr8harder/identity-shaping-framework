@@ -82,7 +82,7 @@ def run_pipeline(
     limit: Optional[int] = None,
     model: Optional[str] = None,
     num_workers: Optional[int] = None,
-    batch_size: int = 10,
+    batch_size: int | None = None,
     max_retries: int = 5,
     log_level: int = logging.INFO,
     render: RenderCallback = _noop_render,
@@ -111,7 +111,7 @@ def run_pipeline(
         model: Optional model shortname for single-model mode. If None,
             tasks must include _model field in requests for routing.
         num_workers: Override worker count (default: from task_class)
-        batch_size: Tasks to load per batch from input (default: 10)
+        batch_size: Tasks to load per batch from input (default: num_workers * 2)
         max_retries: Max retries for rate limit backoff (default: 5)
         log_level: Logging level (default: logging.INFO)
         render: Callback for rendering progress (default: noop).
@@ -200,6 +200,10 @@ def run_pipeline(
         logger.info(f"Starting pipeline (multi-model): {input_path} -> {output_path}")
         logger.info(f"Workers: {num_workers}")
         backend = RegistryBackend(max_retries=max_retries)
+
+    # Calculate batch_size if not provided - use 2x workers to keep queue full
+    if batch_size is None:
+        batch_size = num_workers * 2
 
     # Wrap task source to add render callback
     task_source = FileTaskSource(
