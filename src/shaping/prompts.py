@@ -284,9 +284,11 @@ def discover_checkpoints(project_dir: Path) -> list[dict[str, Any]]:
         if not base_model:
             continue
 
+        backend = train_config.get("backend", "tinker")
+
         # Load tinker config for renderer (if exists)
         renderer = None
-        if tinker_config_file.exists():
+        if backend == "tinker" and tinker_config_file.exists():
             with open(tinker_config_file) as f:
                 tinker_config = json.load(f)
             renderer = (
@@ -294,6 +296,32 @@ def discover_checkpoints(project_dir: Path) -> list[dict[str, Any]]:
                 .get("common_config", {})
                 .get("renderer_name")
             )
+
+        if backend != "tinker":
+            artifacts_file = exp_dir / "artifacts.json"
+            artifacts = {}
+            if artifacts_file.exists():
+                with open(artifacts_file) as f:
+                    artifacts = json.load(f)
+
+            registry = train_config.get("backend_options", {}).get(
+                "registry"
+            ) or artifacts.get("registry")
+            if not registry or not registry.get("model"):
+                continue
+
+            checkpoint_name = exp_dir.name.lower()
+            checkpoints.append(
+                {
+                    "name": checkpoint_name,
+                    "provider": registry.get("provider", "local"),
+                    "model": registry["model"],
+                    "temperature": registry.get("temperature"),
+                    "backend": backend,
+                    "base_model": base_model,
+                }
+            )
+            continue
 
         # Load checkpoints
         with open(checkpoints_file) as f:
@@ -336,6 +364,18 @@ def build_registry(config: PromptsConfig) -> Path:
 
     # Discover and add trained checkpoints
     for cp in discover_checkpoints(config.project_dir):
+        if cp.get("provider") in {"local", "openai_compatible"}:
+            params = {"temperature": config.identity_temperature}
+            if cp.get("temperature") is not None:
+                params["temperature"] = cp["temperature"]
+            models[cp["name"]] = {
+                "provider": cp["provider"],
+                "model": cp["model"],
+                "params": params,
+                "sysprompt": None,
+            }
+            continue
+
         # Combine base_model::renderer::checkpoint_path into model field
         # This is the format mq/llm_client expects for tinker models
         renderer = cp["renderer"] or "qwen3"

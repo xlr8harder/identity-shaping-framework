@@ -21,7 +21,8 @@ shaping/
 │   └── tinker/            # TinkerClient, catalog, renderer wrappers
 ├── training/              # Training infrastructure
 │   ├── config.py          # TrainConfig dataclass and backend selection
-│   └── runner.py          # Training backend dispatcher
+│   ├── runner.py          # Training backend dispatcher
+│   └── unsloth.py         # Local Unsloth LoRA/QLoRA backend
 └── pipeline/              # Data synthesis
     ├── tasks.py           # GeneratorTask helpers
     └── runner.py          # Pipeline execution
@@ -136,22 +137,28 @@ config = TrainConfig(
 run_training(config)
 ```
 
-`backend: tinker` is integrated today. `unsloth`, `axolotl`, and `prime` are
-recognized backend names so config and CLI UX can stay stable as those runners
-are added.
+`backend: tinker` and `backend: unsloth` are integrated today. `axolotl` and
+`prime` are recognized backend names so config and CLI UX can stay stable as
+those runners are added. Backend behavior is documented in
+[Training Backends](training-backends.md).
 
 Features:
 - YAML config loading with CLI overrides
 - Auto-experiment naming (E001, E002, ...)
-- Progress display from metrics.jsonl
+- Metrics written to metrics.jsonl
 - Gradient norm logging by default
 - Backend-specific options preserved in `backend_options`
 
 ### Accessing Trained Checkpoints
 
-**Final checkpoints** are auto-discovered when you run `isf registry build`. The
-build process scans `training/logs/*/checkpoints.jsonl` and registers the final
-checkpoint from each experiment (e.g., `e002-final`).
+**Tinker final checkpoints** are auto-discovered when you run
+`isf registry build`. The build process scans
+`training/logs/*/checkpoints.jsonl` and registers the final checkpoint from each
+Tinker experiment (e.g., `e002-final`).
+
+**Unsloth artifacts** are local adapter or merged-model directories. They are
+registered only when `backend_options.registry.model` names the
+OpenAI-compatible model that will serve those artifacts through `llm_client`.
 
 **Intermediate checkpoints** (e.g., step 100, 200) aren't auto-registered but can be accessed:
 

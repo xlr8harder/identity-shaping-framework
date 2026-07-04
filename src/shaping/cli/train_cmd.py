@@ -170,13 +170,20 @@ def train_run(
         click.echo(f"\nExperiment complete: {log_path}")
 
         # Auto-register checkpoint in mq registry
-        from ..prompts import PromptsConfig, build_registry
+        from ..prompts import PromptsConfig, build_registry, discover_checkpoints
 
         try:
             prompts_config = PromptsConfig.from_project(ctx.project_dir)
             build_registry(prompts_config)
             exp_name = log_path.name.lower()
-            click.echo(f"Registered checkpoint: {exp_name}")
+            registered = {
+                checkpoint["name"]
+                for checkpoint in discover_checkpoints(ctx.project_dir)
+            }
+            if exp_name in registered:
+                click.echo(f"Registered checkpoint: {exp_name}")
+            else:
+                click.echo("Refreshed registry.")
         except Exception as e:
             click.echo(f"Warning: Could not auto-register checkpoint: {e}")
     except (
@@ -185,6 +192,7 @@ def train_run(
         FileNotFoundError,
         FileExistsError,
         NotImplementedError,
+        RuntimeError,
     ) as e:
         raise click.ClickException(str(e))
     except KeyboardInterrupt:
@@ -196,7 +204,7 @@ def train_backends():
     """List known training backends and integration status."""
     rows = [
         ("tinker", "integrated", "Managed SFT through tinker_cookbook"),
-        ("unsloth", "planned", "Local LoRA/QLoRA SFT"),
+        ("unsloth", "integrated", "Local LoRA/QLoRA SFT"),
         ("axolotl", "planned", "Local/config-driven LoRA or QLoRA SFT"),
         ("prime", "planned", "Prime Intellect hosted training"),
     ]
@@ -406,8 +414,14 @@ def train_show(ctx: ProjectContext, experiment: str):
             for ckpt in checkpoints[-5:]:
                 name = ckpt.get("name", "?")
                 epoch = ckpt.get("epoch", "?")
-                state_path = ckpt.get("state_path", "")
-                click.echo(f"  {name} (epoch {epoch}): {state_path}")
+                artifact_path = (
+                    ckpt.get("state_path")
+                    or ckpt.get("sampler_path")
+                    or ckpt.get("adapter_path")
+                    or ckpt.get("merged_path")
+                    or ""
+                )
+                click.echo(f"  {name} (epoch {epoch}): {artifact_path}")
             if len(checkpoints) > 5:
                 click.echo(f"  ... and {len(checkpoints) - 5} earlier")
         else:

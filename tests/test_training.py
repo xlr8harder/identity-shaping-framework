@@ -407,7 +407,7 @@ class TestBuildConfig:
         fields = {**REQUIRED_FIELDS, "data": str(data_file)}
         config = TrainConfig(
             **fields,
-            backend="unsloth",
+            backend="axolotl",
         )
 
         with pytest.raises(NotImplementedError, match="not implemented yet"):

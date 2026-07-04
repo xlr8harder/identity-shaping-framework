@@ -195,11 +195,15 @@ def run_training(
     """
     if config.backend == "tinker":
         return _run_tinker_training(config, force=force, verbose=verbose)
+    if config.backend == "unsloth":
+        from .unsloth import run_unsloth_training
+
+        return run_unsloth_training(config, force=force, verbose=verbose)
 
     raise NotImplementedError(
         f"Training backend '{config.backend}' is recognized but not implemented yet. "
-        "Runnable backend today: tinker. Planned integrated backends: "
-        "unsloth, axolotl, prime."
+        "Runnable backends today: tinker, unsloth. Planned integrated backends: "
+        "axolotl, prime."
     )
 
 
