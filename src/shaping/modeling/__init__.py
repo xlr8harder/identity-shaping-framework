@@ -4,7 +4,7 @@ Provides clients, backends, and renderers for working with models,
 whether for inference, evaluation, or training data preparation.
 
 **Clients** (high-level, for direct use):
-- LLMClient: mq-registered models via llm_client (OpenRouter, Chutes, etc.)
+- LLMClient: mq-registered models via llm_client (API and local OpenAI-compatible providers)
 - TinkerClient: trained models via tinker sampling
 
 **Backends** (dispatcher-compatible BackendManager implementations):
@@ -22,7 +22,7 @@ Usage with clients:
     from shaping.modeling import LLMClient
     from shaping.modeling.tinker import TinkerClient
 
-    # API-based model
+    # llm_client-backed model
     client = LLMClient("aria-v0.9-full")
     response = client.query([{"role": "user", "content": "Hello!"}])
 

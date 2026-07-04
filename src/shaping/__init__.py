@@ -11,7 +11,7 @@ Quick start with clients:
     from shaping.modeling import LLMClient
     from shaping.modeling.tinker import TinkerClient
 
-    # API-based model (use registry shortname directly)
+    # llm_client-backed model (API or local OpenAI-compatible provider)
     client = LLMClient("cubsfan-release-full")
     response = client.query([{"role": "user", "content": "Hello!"}])
 

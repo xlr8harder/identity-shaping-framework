@@ -68,7 +68,7 @@ def _setup_project(start_path: Path) -> None:
     if not config.registry_path.exists():
         raise FileNotFoundError(
             f"Registry not found at {config.registry_path}. "
-            f"Run 'isf prompts build' to generate it."
+            f"Run 'isf registry build' to generate it."
         )
     mq_store.set_config_path_override(config.registry_path)
 

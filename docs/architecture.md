@@ -7,7 +7,7 @@ Technical implementation details for the Identity Shaping Framework.
 ```
 shaping/
 ├── __init__.py
-├── cli.py                 # isf command entry point
+├── cli/                   # isf command modules
 ├── data/                  # Training data utilities
 │   ├── think_tags.py      # Validation, stripping, extraction
 │   └── format.py          # JSONL format handling
@@ -15,16 +15,16 @@ shaping/
 │   ├── parsers.py         # XML parsing for structured responses
 │   ├── rubrics.py         # Rubric definitions
 │   └── base.py            # Eval base class
-├── inference/             # Model backends
-│   ├── client.py          # LLMClient for API models
-│   ├── tinker.py          # TinkerClient for trained checkpoints
-│   ├── config.py          # Model resolution, config loading
-│   └── renderers.py       # Prompt formatting (Qwen3, DeepSeek, etc.)
+├── modeling/              # Model clients, dispatcher backends, renderers
+│   ├── clients.py         # LLMClient wrapper around llm_client
+│   ├── backends.py        # Dispatcher BackendManager implementations
+│   └── tinker/            # TinkerClient, catalog, renderer wrappers
 ├── training/              # Training infrastructure
 │   ├── config.py          # TrainConfig dataclass
 │   └── runner.py          # Training runner wrapping tinker_cookbook
 └── pipeline/              # Data synthesis
-    └── task.py            # TrackedTask base class
+    ├── tasks.py           # GeneratorTask helpers
+    └── runner.py          # Pipeline execution
 ```
 
 ## CLI Design
@@ -45,36 +45,50 @@ Design principles:
 - JSON output available for agent consumption (`--json` where applicable)
 - Commands work from project directory (template repo)
 
-## Inference Backends
+## Backend Selection
 
-Two primary backends for model inference:
+ISF selects an inference backend from the model registry entry. Registry entries
+are generated from a project's `isf.yaml` and from training artifacts under
+`training/logs/`.
 
-### LLMClient (API models)
+Provider routing is intentionally simple:
 
-For models accessed via API (OpenRouter, etc.):
+| Provider | Backend | Use for |
+|----------|---------|---------|
+| `openrouter`, `openai`, `chutes`, `anthropic`, `local`, `openai_compatible` | `LLMClientBackend` | API and OpenAI-compatible HTTP inference through `llm_client` |
+| `tinker` | `TinkerBackend` | Tinker base models and Tinker checkpoints |
+
+`local` and `openai_compatible` are handled by `llm_client`; ISF does not
+maintain a separate local HTTP client. Set `LOCAL_LLM_BASE_URL` to point at a
+server such as vLLM or llama.cpp, and set `LOCAL_LLM_API_KEY` only if that
+server requires an Authorization header.
+
+### LLMClientBackend
+
+For models accessed through `llm_client`:
 
 ```python
-from shaping.inference import LLMClient
+from shaping.modeling import LLMClient
 
-client = LLMClient("model-shortname")  # Resolved from registry
-response = client.generate(messages, temperature=0.7)
+client = LLMClient("model-shortname")
+response = client.query([{"role": "user", "content": "Hello!"}])
 ```
 
 Features:
 - Model resolution from `mq` registry
 - System prompt injection
 - Retry with backoff
-- Structured response parsing
+- Reasoning-content normalization when providers return it separately
 
-### TinkerClient (trained checkpoints)
+### TinkerBackend
 
-For locally-trained models via Tinker:
+For Tinker base models and trained checkpoints:
 
 ```python
-from shaping.inference import TinkerClient
+from shaping.modeling.tinker import TinkerClient
 
-client = TinkerClient("checkpoint-name")  # Resolved from registry
-response = client.generate(messages, temperature=0.7)
+client = TinkerClient.from_checkpoint("e001-final")
+response = client.query([{"role": "user", "content": "Hello!"}])
 ```
 
 Features:
@@ -83,21 +97,18 @@ Features:
 - Thinking content handling
 - Stop sequence management
 
-### Unified Interface
-
-Both clients share the same interface:
-- `generate(messages, **kwargs) → str`
-- `generate_with_thinking(messages, **kwargs) → (thinking, response)`
+Dispatcher pipelines and evals normally use `RegistryBackend`, which reads the
+`_model` field from each request and routes to the right backend automatically.
 
 ## Renderer System
 
 Renderers handle prompt formatting for different model families:
 
 ```python
-from shaping.inference.renderers import get_renderer
+from shaping.modeling import get_model_format
 
-renderer = get_renderer("qwen3", tokenizer)
-prompt = renderer.build_inference_prompt(messages)
+fmt = get_model_format("Qwen/Qwen3-8B")
+renderer_name = fmt.inference_renderer
 ```
 
 Each renderer handles:
@@ -132,7 +143,9 @@ Features:
 
 ### Accessing Trained Checkpoints
 
-**Final checkpoints** are auto-discovered when you run `isf prompts build`. The build process scans `training/logs/*/checkpoints.jsonl` and registers the final checkpoint from each experiment (e.g., `e002-final`).
+**Final checkpoints** are auto-discovered when you run `isf registry build`. The
+build process scans `training/logs/*/checkpoints.jsonl` and registers the final
+checkpoint from each experiment (e.g., `e002-final`).
 
 **Intermediate checkpoints** (e.g., step 100, 200) aren't auto-registered but can be accessed:
 
@@ -152,7 +165,7 @@ Features:
        renderer: qwen3
        temperature: 0.7
    ```
-   Then run `isf prompts build` to update the registry.
+   Then run `isf registry build` to update the registry.
 
 Checkpoint paths are logged to `training/logs/EXXX/checkpoints.jsonl` during training
 
@@ -177,14 +190,14 @@ Built-in evals in `shaping/eval/evals/`. Project evals discovered from `evals/` 
 
 ## Pipeline System
 
-Pipelines use `TrackedTask` for multi-step data synthesis:
+Pipelines use generator tasks for multi-step data synthesis:
 
 ```python
-from shaping.pipeline import TrackedTask
+from shaping.pipeline import GeneratorTask
 
-class MyPipeline(TrackedTask):
+class MyTask(GeneratorTask):
     def process(self, item: dict) -> dict:
-        # Generate, judge, maybe retry
+        # Yield model requests, validate, maybe retry.
         return {"response": "..."}
 ```
 
@@ -241,6 +254,7 @@ Test categories:
 
 Core:
 - `tinker`, `tinker-cookbook` - Training infrastructure
+- `llm-client` - API and local OpenAI-compatible inference
 - `mq` - Model registry
 - `click` - CLI framework
 - `pydantic` - Config validation
