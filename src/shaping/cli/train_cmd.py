@@ -114,6 +114,7 @@ def train_run(
         max_length: 8192
         epochs: 2
 
+    \b
     Examples:
         isf train run training/config.yaml --data train.jsonl
         isf train run training/config.yaml -d train.jsonl -e 3
