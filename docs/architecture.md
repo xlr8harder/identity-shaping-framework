@@ -203,6 +203,7 @@ Projects use `.env` for API keys:
 ```bash
 OPENROUTER_API_KEY=...
 TINKER_API_KEY=...
+LOCAL_LLM_BASE_URL=http://127.0.0.1:8000/v1
 ```
 
 ### Model Registry
@@ -211,6 +212,7 @@ Models registered via `mq` (from the `mq` package):
 
 ```bash
 mq register model-name --provider openrouter --model "..."
+mq register local-model --provider local --model "served-model-name"
 ```
 
 ISF resolves model names through the registry.

@@ -70,29 +70,16 @@ identity-shaping-framework/
   - Uses this package as an editable dependency
   - Provides worked examples of identity shaping
 
-## Issue Tracking
-
-Use `bd` (beads) for issue tracking:
-```bash
-bd ready           # See available work
-bd create --title="..." --type=task
-bd update <id> --status=in_progress
-bd close <id>
-bd sync            # Sync with git
-```
-
 ## Session Completion
 
 When ending a work session, complete ALL steps:
 
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
+1. **Document remaining work** - Note anything that needs follow-up
 2. **Run quality gates** - Tests, linters if code changed
-3. **Update issue status** - Close finished work, update in-progress items
-4. **Push to remote**:
+3. **Push to remote**:
    ```bash
    git pull --rebase
-   bd sync
    git push
    ```
-5. **Verify** - `git status` should show "up to date with origin"
-6. **Hand off** - Provide context for next session
+4. **Verify** - `git status` should show "up to date with origin"
+5. **Hand off** - Provide context for next session

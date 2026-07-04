@@ -15,8 +15,6 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
@@ -32,7 +30,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "pyyaml>=6.0",
     "tiktoken>=0.7.0",  # for Kimi-K2 tokenizer
-    "tinker>=0.7.0",
+    "tinker>=0.22.6",
     "tinker-cookbook @ git+https://github.com/xlr8harder/tinker-cookbook",
     "transformers",  # for HF tokenizers in tests
     "wikipedia>=1.4.0",

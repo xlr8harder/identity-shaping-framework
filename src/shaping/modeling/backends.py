@@ -186,7 +186,14 @@ class TinkerBackend(BackendManager):
 
 
 # Providers that use LLMClientBackend
-LLMCLIENT_PROVIDERS = {"openrouter", "chutes", "openai", "anthropic"}
+LLMCLIENT_PROVIDERS = {
+    "openrouter",
+    "chutes",
+    "openai",
+    "anthropic",
+    "local",
+    "openai_compatible",
+}
 
 
 class RegistryBackend(BackendManager):

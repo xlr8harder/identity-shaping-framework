@@ -289,6 +289,36 @@ class TestTinkerBackendSysprompt:
             assert captured_messages[0]["role"] == "user"
 
 
+class TestRegistryBackendRouting:
+    """Test model registry provider dispatch."""
+
+    def test_local_provider_routes_through_llm_client_backend(self):
+        """RegistryBackend sends local OpenAI-compatible models to llm_client."""
+        model_info = {
+            "provider": "local",
+            "model": "served-model",
+        }
+
+        with patch("shaping.modeling.backends.mq_store") as backend_store:
+            with patch("shaping.modeling.clients.mq_store") as client_store:
+                with patch("shaping.modeling.clients.get_provider") as get_provider:
+                    backend_store.get_model.return_value = model_info
+                    client_store.get_model.return_value = model_info
+                    get_provider.return_value = MagicMock()
+
+                    from shaping.modeling.backends import (
+                        LLMClientBackend,
+                        RegistryBackend,
+                    )
+
+                    backend = RegistryBackend()._get_backend("local-model")
+
+        assert isinstance(backend, LLMClientBackend)
+        assert backend.client.provider_name == "local"
+        assert backend.client.model_id == "served-model"
+        get_provider.assert_called_once_with("local")
+
+
 class TestConfigResolution:
     """Test config.py checkpoint resolution."""
 

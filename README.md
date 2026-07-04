@@ -64,7 +64,7 @@ See [CLAUDE.md](CLAUDE.md) for development practices and [docs/architecture.md](
 ## What ISF Provides
 
 - **`isf` CLI** for the full identity development lifecycle
-- **Inference backends** for Tinker checkpoints and API models
+- **Inference backends** for Tinker checkpoints, API models, and local OpenAI-compatible servers through `llm_client`
 - **Evaluation infrastructure** with rubrics, parsers, and judge prompts
 - **Training runner** wrapping tinker_cookbook for SFT experiments
 - **Pipeline utilities** for multi-step data synthesis
