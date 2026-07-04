@@ -11,6 +11,8 @@ from shaping.training import (
     build_config,
     load_config,
     get_next_experiment_name,
+    normalize_training_backend,
+    run_training,
 )
 from shaping.training.runner import _check_for_multiturn
 
@@ -34,6 +36,7 @@ class TestTrainConfig:
         """Config with only required fields."""
         config = TrainConfig(**REQUIRED_FIELDS)
         assert config.base_model == "test/model"
+        assert config.backend == "tinker"
         assert config.data == "train.jsonl"
         assert config.name == "e001"
         assert config.renderer == "qwen3"
@@ -59,6 +62,32 @@ class TestTrainConfig:
         assert config.optim_metrics_every == 1
         assert config.note is None
         assert config.log_dir == "training/logs"
+        assert config.backend_options == {}
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("tinker", "tinker"),
+            ("unsloth", "unsloth"),
+            ("usnloth", "unsloth"),
+            ("axolotl", "axolotl"),
+            ("axlotol", "axolotl"),
+            ("prime", "prime"),
+            ("prime-intellect", "prime"),
+            ("prime_intellect", "prime"),
+        ],
+    )
+    def test_backend_normalization(self, raw, expected):
+        """Backend aliases normalize to canonical config values."""
+        assert normalize_training_backend(raw) == expected
+        config = TrainConfig(**REQUIRED_FIELDS, backend=raw)
+        assert config.backend == expected
+
+    def test_validation_rejects_unknown_backend(self):
+        """Config validation rejects unknown training backend names."""
+        fields = {**REQUIRED_FIELDS, "backend": "not-a-backend"}
+        with pytest.raises(ValueError, match="Unsupported training backend"):
+            TrainConfig(**fields)
 
     def test_validation_requires_base_model(self):
         """Config validation requires base_model."""
@@ -120,6 +149,8 @@ class TestTrainConfig:
         expected_keys = {
             "name",
             "base_model",
+            "backend",
+            "backend_options",
             "data",
             "epochs",
             "batch_size",
@@ -218,6 +249,62 @@ class TestBuildConfig:
         assert config.lr_schedule == "cosine"
         assert config.lora_rank == 16
 
+    def test_backend_from_yaml(self, tmp_path, data_file):
+        """Backend can be selected in YAML config."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            yaml.dump(
+                {
+                    "backend": "prime-intellect",
+                    "base_model": "test/model",
+                    "data": str(data_file),
+                    "backend_options": {"project": "isf-test"},
+                }
+            )
+        )
+
+        config = build_config(config_file, **self.RESOLVED)
+        assert config.backend == "prime"
+        assert config.backend_options == {"project": "isf-test"}
+
+    def test_backend_cli_override(self, tmp_path, data_file):
+        """CLI backend override takes precedence over YAML config."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            yaml.dump(
+                {
+                    "backend": "tinker",
+                    "base_model": "test/model",
+                    "data": str(data_file),
+                }
+            )
+        )
+
+        config = build_config(config_file, backend="axlotol", **self.RESOLVED)
+        assert config.backend == "axolotl"
+
+    def test_non_tinker_backend_uses_backend_neutral_defaults(
+        self, tmp_path, data_file
+    ):
+        """Non-Tinker backends do not resolve renderer/lr through tinker_cookbook."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            yaml.dump(
+                {
+                    "backend": "unsloth",
+                    "base_model": "test/model",
+                    "data": str(data_file),
+                    "batch_size": 10,
+                }
+            )
+        )
+
+        config = build_config(config_file)
+        assert config.backend == "unsloth"
+        assert config.renderer == "auto"
+        assert config.learning_rate == 2e-4
+        assert config.save_every == 10
+
     def test_auto_generates_experiment_name(self, tmp_path, data_file):
         """Auto-generates experiment name if not provided."""
         config_file = tmp_path / "config.yaml"
@@ -314,6 +401,17 @@ class TestBuildConfig:
                 learning_rate=1e-5,
                 shuffle_seed=42,
             )
+
+    def test_known_unimplemented_backend_fails_clearly(self, tmp_path, data_file):
+        """Known but unwired backends fail at runner dispatch, not config parse."""
+        fields = {**REQUIRED_FIELDS, "data": str(data_file)}
+        config = TrainConfig(
+            **fields,
+            backend="unsloth",
+        )
+
+        with pytest.raises(NotImplementedError, match="not implemented yet"):
+            run_training(config)
 
     def test_load_config_is_alias(self, tmp_path, data_file):
         """load_config is a backwards-compatible alias for build_config."""

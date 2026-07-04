@@ -12,7 +12,7 @@ from .context import ProjectContext, pass_context
 def train():
     """Run training experiments.
 
-    Commands for running SFT training with tinker_cookbook.
+    Commands for running SFT training with configurable backends.
     Training configs are YAML files in training/configs/.
     """
     pass
@@ -26,6 +26,14 @@ def train():
 )
 @click.option("--name", "-n", help="Experiment name (auto-generated if not provided)")
 @click.option("--epochs", "-e", type=int, help="Number of epochs")
+@click.option(
+    "--backend",
+    type=click.Choice(
+        ["tinker", "unsloth", "axolotl", "prime", "prime_intellect"],
+        case_sensitive=False,
+    ),
+    help="Training backend (overrides config)",
+)
 # Model options
 @click.option("--model", "-m", help="Base model (overrides config)")
 @click.option("--renderer", help="Override renderer (e.g., qwen3, deepseekv3)")
@@ -70,6 +78,7 @@ def train_run(
     data: Path,
     name: str,
     epochs: int,
+    backend: str,
     model: str,
     renderer: str,
     lr: float,
@@ -98,6 +107,7 @@ def train_run(
     Example config (training/config.yaml):
 
     \b
+        backend: tinker
         base_model: Qwen/Qwen3-30B-A3B
         batch_size: 32
         lora_rank: 32
@@ -116,6 +126,7 @@ def train_run(
     try:
         # Build overrides from CLI options
         overrides = {
+            "backend": backend,
             "data": str(data) if data else None,
             "name": name,
             "epochs": epochs,
@@ -167,10 +178,31 @@ def train_run(
             click.echo(f"Registered checkpoint: {exp_name}")
         except Exception as e:
             click.echo(f"Warning: Could not auto-register checkpoint: {e}")
-    except (ImportError, ValueError, FileNotFoundError, FileExistsError) as e:
+    except (
+        ImportError,
+        ValueError,
+        FileNotFoundError,
+        FileExistsError,
+        NotImplementedError,
+    ) as e:
         raise click.ClickException(str(e))
     except KeyboardInterrupt:
         raise click.Abort()
+
+
+@train.command("backends")
+def train_backends():
+    """List known training backends and integration status."""
+    rows = [
+        ("tinker", "integrated", "Managed SFT through tinker_cookbook"),
+        ("unsloth", "planned", "Local LoRA/QLoRA SFT"),
+        ("axolotl", "planned", "Local/config-driven LoRA or QLoRA SFT"),
+        ("prime", "planned", "Prime Intellect hosted training"),
+    ]
+
+    click.echo("Training backends:")
+    for name, status, notes in rows:
+        click.echo(f"  {name:<8} {status:<10} {notes}")
 
 
 @train.command("list")
@@ -289,6 +321,7 @@ def train_show(ctx: ProjectContext, experiment: str):
         with open(isf_config) as f:
             config = json.load(f)
         click.echo("Configuration (ISF):")
+        click.echo(f"  Backend: {config.get('backend', 'tinker')}")
         click.echo(f"  Model: {config.get('base_model', 'unknown')}")
         click.echo(f"  Data: {config.get('data', 'unknown')}")
         click.echo(f"  Epochs: {config.get('epochs', 'unknown')}")

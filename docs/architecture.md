@@ -20,8 +20,8 @@ shaping/
 │   ├── backends.py        # Dispatcher BackendManager implementations
 │   └── tinker/            # TinkerClient, catalog, renderer wrappers
 ├── training/              # Training infrastructure
-│   ├── config.py          # TrainConfig dataclass
-│   └── runner.py          # Training runner wrapping tinker_cookbook
+│   ├── config.py          # TrainConfig dataclass and backend selection
+│   └── runner.py          # Training backend dispatcher
 └── pipeline/              # Data synthesis
     ├── tasks.py           # GeneratorTask helpers
     └── runner.py          # Pipeline execution
@@ -121,12 +121,13 @@ Supported: `qwen3`, `deepseekv3_thinking`, `kimi_k2`, `gpt_oss`
 
 ## Training Integration
 
-Training wraps `tinker_cookbook` with ISF conventions:
+Training uses one config and command surface across backends:
 
 ```python
 from shaping.training import TrainConfig, run_training
 
 config = TrainConfig(
+    backend="tinker",
     base_model="Qwen/Qwen3-30B-A3B",
     data="training/data/train.jsonl",
     epochs=1,
@@ -135,11 +136,16 @@ config = TrainConfig(
 run_training(config)
 ```
 
+`backend: tinker` is integrated today. `unsloth`, `axolotl`, and `prime` are
+recognized backend names so config and CLI UX can stay stable as those runners
+are added.
+
 Features:
 - YAML config loading with CLI overrides
 - Auto-experiment naming (E001, E002, ...)
 - Progress display from metrics.jsonl
 - Gradient norm logging by default
+- Backend-specific options preserved in `backend_options`
 
 ### Accessing Trained Checkpoints
 

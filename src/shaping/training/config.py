@@ -1,10 +1,37 @@
 """Training configuration parsing and validation."""
 
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 import yaml
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
+
+
+SUPPORTED_TRAINING_BACKENDS = {"tinker", "unsloth", "axolotl", "prime"}
+DEFAULT_NON_TINKER_LEARNING_RATE = 2e-4
+TRAINING_BACKEND_ALIASES = {
+    "tinker": "tinker",
+    "unsloth": "unsloth",
+    "usnloth": "unsloth",
+    "axolotl": "axolotl",
+    "axlotol": "axolotl",
+    "prime": "prime",
+    "prime_intellect": "prime",
+    "primeintellect": "prime",
+}
+
+
+def normalize_training_backend(value: str | None) -> str:
+    """Normalize and validate a training backend name."""
+    if value is None or value == "":
+        return "tinker"
+
+    normalized = str(value).strip().lower().replace("-", "_")
+    backend = TRAINING_BACKEND_ALIASES.get(normalized, normalized)
+    if backend not in SUPPORTED_TRAINING_BACKENDS:
+        valid = ", ".join(sorted(SUPPORTED_TRAINING_BACKENDS))
+        raise ValueError(f"Unsupported training backend '{value}'. Valid: {valid}")
+    return backend
 
 
 class TrainConfig(BaseModel):
@@ -14,6 +41,7 @@ class TrainConfig(BaseModel):
     Use build_config() to construct from a YAML file with auto-resolution.
 
     Fields:
+        backend: Training backend selector (tinker, unsloth, axolotl, prime)
         base_model: Model to fine-tune (e.g., "Qwen/Qwen3-30B-A3B")
         data: Path to prepared training data (JSONL)
         name: Experiment name (auto-generated if not provided to build_config)
@@ -29,11 +57,13 @@ class TrainConfig(BaseModel):
         grad_clip: Gradient clipping norm
         normalize_weights: Normalize per-example weights
         optim_metrics_every: Log optimizer metrics every N steps
+        backend_options: Backend-specific options that ISF preserves
         note: Free-form annotation
         log_dir: Base directory for experiment logs
     """
 
     # All required - fully resolved by build_config()
+    backend: str = "tinker"
     base_model: str
     data: str
     name: str
@@ -62,11 +92,19 @@ class TrainConfig(BaseModel):
     grad_clip: float = 1e12
     optim_metrics_every: int = 1
 
+    # Backend-specific options
+    backend_options: dict[str, Any] = Field(default_factory=dict)
+
     # Annotation (truly optional)
     note: Optional[str] = None
 
     # Paths
     log_dir: str = "training/logs"
+
+    @field_validator("backend")
+    @classmethod
+    def backend_supported(cls, v: str) -> str:
+        return normalize_training_backend(v)
 
     @field_validator("base_model")
     @classmethod
@@ -267,6 +305,8 @@ def build_config(path: str | Path, **overrides) -> TrainConfig:
     if not cfg.get("data"):
         raise ValueError("data or dataset is required in config")
 
+    backend = normalize_training_backend(cfg.get("backend"))
+    cfg["backend"] = backend
     base_model = cfg["base_model"]
     data_path = Path(cfg["data"])
 
@@ -277,11 +317,17 @@ def build_config(path: str | Path, **overrides) -> TrainConfig:
 
     # Resolve renderer
     if not cfg.get("renderer"):
-        cfg["renderer"] = _detect_renderer(base_model)
+        if backend == "tinker":
+            cfg["renderer"] = _detect_renderer(base_model)
+        else:
+            cfg["renderer"] = "auto"
 
     # Resolve learning rate
     if cfg.get("learning_rate") is None:
-        cfg["learning_rate"] = _get_learning_rate(base_model)
+        if backend == "tinker":
+            cfg["learning_rate"] = _get_learning_rate(base_model)
+        else:
+            cfg["learning_rate"] = DEFAULT_NON_TINKER_LEARNING_RATE
 
     # Resolve shuffle_seed (defaults to seed)
     if cfg.get("shuffle_seed") is None:

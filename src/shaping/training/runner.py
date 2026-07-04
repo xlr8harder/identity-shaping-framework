@@ -177,7 +177,7 @@ def _copy_dataset_manifest(data_path: Path, log_path: Path) -> None:
 def run_training(
     config: TrainConfig, force: bool = False, verbose: bool = False
 ) -> Path:
-    """Run a training experiment.
+    """Run a training experiment using the configured backend.
 
     Args:
         config: Fully-resolved training configuration (from build_config)
@@ -188,10 +188,25 @@ def run_training(
         Path to the experiment log directory
 
     Raises:
-        ImportError: If tinker_cookbook is not installed
+        ImportError: If backend dependencies are not installed
         ValueError: If data file doesn't exist
         FileExistsError: If experiment directory exists and force=False
+        NotImplementedError: If the backend is known but not integrated yet
     """
+    if config.backend == "tinker":
+        return _run_tinker_training(config, force=force, verbose=verbose)
+
+    raise NotImplementedError(
+        f"Training backend '{config.backend}' is recognized but not implemented yet. "
+        "Runnable backend today: tinker. Planned integrated backends: "
+        "unsloth, axolotl, prime."
+    )
+
+
+def _run_tinker_training(
+    config: TrainConfig, force: bool = False, verbose: bool = False
+) -> Path:
+    """Run a Tinker training experiment."""
     _check_dependencies()
 
     from tinker_cookbook import cli_utils
