@@ -107,7 +107,9 @@ Unsloth runs write:
 
 Unsloth artifacts are local files. To use them for ISF inference, serve the
 adapter or merged model behind an OpenAI-compatible server and register it with
-`provider: local`, which routes through `llm_client`.
+`provider: local`, which routes through `llm_client`. The endpoint can come from
+`LOCAL_LLM_BASE_URL`, or from a direct model string such as
+`127.0.0.1:8000/served-model-name`.
 
 ## Tinker
 

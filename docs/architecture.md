@@ -62,7 +62,8 @@ Provider routing is intentionally simple:
 `local` and `openai_compatible` are handled by `llm_client`; ISF does not
 maintain a separate local HTTP client. Set `LOCAL_LLM_BASE_URL` to point at a
 server such as vLLM or llama.cpp, and set `LOCAL_LLM_API_KEY` only if that
-server requires an Authorization header.
+server requires an Authorization header. You can also encode the endpoint in
+the model string, such as `127.0.0.1:8000/Qwen/Qwen3-8B`.
 
 ### LLMClientBackend
 
@@ -239,6 +240,7 @@ Models registered via `mq` (from the `mq` package):
 ```bash
 mq register model-name --provider openrouter --model "..."
 mq register local-model --provider local --model "served-model-name"
+mq register local-url --provider local --model "127.0.0.1:8000/served-model-name"
 ```
 
 ISF resolves model names through the registry.

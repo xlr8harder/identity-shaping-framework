@@ -1411,8 +1411,8 @@ wheels = [
 
 [[package]]
 name = "llm-client"
-version = "0.1.28"
-source = { git = "https://github.com/xlr8harder/llm_client.git#48bf3cd61f66465414b5532cc5c026f8d40f1a27" }
+version = "0.1.29"
+source = { git = "https://github.com/xlr8harder/llm_client.git#538f019fc3ec0931799965b0aa5e3465299ff940" }
 dependencies = [
     { name = "pytest" },
     { name = "requests" },
