@@ -1,7 +1,10 @@
 """Tinker model client for inference.
 
-Provides TinkerClient for trained models via tinker sampling.
-Requires tinker and tinker_cookbook packages (TM internal).
+Provides native Tinker sampling for training-coupled workflows.
+
+Ordinary saved-model inference should use llm_client's Tinker provider. This
+client remains for workflows that require native runtime semantics, including
+future RL rollouts against mutable training state.
 """
 
 import asyncio
@@ -32,9 +35,10 @@ except ImportError:
 
 
 class TinkerClient:
-    """Client for tinker-trained models.
+    """Native client for training-coupled Tinker sampling.
 
-    Requires tinker and tinker_cookbook packages (TM internal).
+    Ordinary saved-model inference should use llm_client. Use this client when
+    sampling must participate in a native Tinker training lifecycle.
 
     Example:
         # From experiment checkpoint

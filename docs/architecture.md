@@ -56,8 +56,7 @@ Provider routing is intentionally simple:
 
 | Provider | Backend | Use for |
 |----------|---------|---------|
-| `openrouter`, `openai`, `chutes`, `anthropic`, `local`, `openai_compatible` | `LLMClientBackend` | API and OpenAI-compatible HTTP inference through `llm_client` |
-| `tinker` | `TinkerBackend` | Tinker base models and Tinker checkpoints |
+| `openrouter`, `openai`, `chutes`, `anthropic`, `local`, `openai_compatible`, `tinker` | `LLMClientBackend` | Ordinary inference through `llm_client` |
 
 `local` and `openai_compatible` are handled by `llm_client`; ISF does not
 maintain a separate local HTTP client. Set `LOCAL_LLM_BASE_URL` to point at a
@@ -82,9 +81,11 @@ Features:
 - Retry with backoff
 - Reasoning-content normalization when providers return it separately
 
-### TinkerBackend
+### Native Tinker Runtime
 
-For Tinker base models and trained checkpoints:
+ISF training uses `tinker` and `tinker_cookbook` directly. Native sampling also
+remains available for training-coupled workflows, such as future RL rollouts
+against mutable weights:
 
 ```python
 from shaping.modeling.tinker import TinkerClient
@@ -93,7 +94,12 @@ client = TinkerClient.from_checkpoint("e001-final")
 response = client.query([{"role": "user", "content": "Hello!"}])
 ```
 
-Features:
+This is intentionally separate from registry inference. Saved Tinker models in
+MQ use `provider: tinker` and flow through `llm_client`, while native training
+runtime objects own mutable clients, optimizer state, rollouts, and checkpoint
+lifecycle.
+
+Native runtime features:
 - Checkpoint resolution (name → path)
 - Renderer selection (Qwen3, DeepSeek, etc.)
 - Thinking content handling

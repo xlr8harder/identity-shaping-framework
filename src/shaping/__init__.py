@@ -15,7 +15,7 @@ Quick start with clients:
     client = LLMClient("cubsfan-release-full")
     response = client.query([{"role": "user", "content": "Hello!"}])
 
-    # Tinker checkpoint
+    # Native Tinker sampling for a training-coupled workflow
     client = TinkerClient.from_checkpoint("e027-final")
     response = await client.query_async([...])
 

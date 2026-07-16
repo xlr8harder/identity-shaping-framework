@@ -5,11 +5,11 @@ whether for inference, evaluation, or training data preparation.
 
 **Clients** (high-level, for direct use):
 - LLMClient: mq-registered models via llm_client (API and local OpenAI-compatible providers)
-- TinkerClient: trained models via tinker sampling
+- TinkerClient: native sampling for training-coupled Tinker workflows
 
 **Backends** (dispatcher-compatible BackendManager implementations):
 - LLMClientBackend: wraps LLMClient for dispatcher
-- TinkerBackend: wraps TinkerClient for dispatcher
+- TinkerBackend: native dispatcher escape hatch for training-coupled sampling
 - RegistryBackend: routes requests to backends based on _model field
 
 **Tinker Renderers** (with automatic HF compatibility):

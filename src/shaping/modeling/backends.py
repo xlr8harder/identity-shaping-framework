@@ -2,7 +2,7 @@
 
 Provides BackendManager implementations that wrap the high-level clients:
 - LLMClientBackend: wraps LLMClient for dispatcher
-- TinkerBackend: wraps TinkerClient for dispatcher
+- TinkerBackend: native Tinker escape hatch for training-coupled sampling
 - RegistryBackend: routes requests to backends based on _model field
 
 The backends handle the dispatcher-specific interface (Request/Response),
@@ -81,10 +81,12 @@ class LLMClientBackend(BackendManager):
 
 
 class TinkerBackend(BackendManager):
-    """Backend for tinker-trained models.
+    """Native backend for training-coupled Tinker sampling.
 
-    Wraps TinkerClient with the dispatcher BackendManager interface.
-    Requires tinker and tinker_cookbook packages (TM internal).
+    Ordinary registry and pipeline inference uses LLMClientBackend, including
+    provider="tinker". This backend remains available for workflows that must
+    share native Tinker runtime semantics with training, such as future RL
+    rollouts against mutable weights.
 
     Example:
         backend = TinkerBackend(
@@ -193,6 +195,7 @@ LLMCLIENT_PROVIDERS = {
     "anthropic",
     "local",
     "openai_compatible",
+    "tinker",
 }
 
 
@@ -234,19 +237,6 @@ class RegistryBackend(BackendManager):
 
         if provider in LLMCLIENT_PROVIDERS:
             backend = LLMClientBackend(shortname, max_retries=self.max_retries)
-        elif provider == "tinker":
-            # Tinker models need base_model and optionally model_path/renderer
-            base_model = model_info_data.get("model")
-            if not base_model:
-                raise ValueError(
-                    f"Tinker model '{shortname}' missing 'model' (base model name)"
-                )
-            backend = TinkerBackend(
-                base_model=base_model,
-                model_path=model_info_data.get("model_path"),
-                renderer_name=model_info_data.get("renderer"),
-                sysprompt=model_info_data.get("sysprompt"),
-            )
         else:
             raise ValueError(f"Unknown provider '{provider}' for model '{shortname}'")
 
