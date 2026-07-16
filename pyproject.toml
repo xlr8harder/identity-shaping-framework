@@ -23,7 +23,7 @@ dependencies = [
     "dispatcher @ git+https://github.com/LumiOpen/dispatcher",
     "gradio>=4.0",
     "jinja2>=3.0",
-    "llm-client[tinker] @ git+https://github.com/xlr8harder/llm_client",
+    "llm-client @ git+https://github.com/xlr8harder/llm_client",
     "mq @ git+https://github.com/xlr8harder/mq",
     "openai", # unspecified dispatcher dependency
     "plotext>=5.0",  # terminal loss curve plotting

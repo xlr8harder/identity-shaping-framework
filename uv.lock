@@ -919,7 +919,7 @@ dependencies = [
     { name = "dispatcher" },
     { name = "gradio" },
     { name = "jinja2" },
-    { name = "llm-client", extra = ["tinker"] },
+    { name = "llm-client" },
     { name = "mq" },
     { name = "openai" },
     { name = "plotext" },
@@ -960,7 +960,7 @@ requires-dist = [
     { name = "dispatcher", git = "https://github.com/LumiOpen/dispatcher" },
     { name = "gradio", specifier = ">=4.0" },
     { name = "jinja2", specifier = ">=3.0" },
-    { name = "llm-client", extras = ["tinker"], git = "https://github.com/xlr8harder/llm_client" },
+    { name = "llm-client", git = "https://github.com/xlr8harder/llm_client" },
     { name = "mq", git = "https://github.com/xlr8harder/mq" },
     { name = "openai" },
     { name = "peft", marker = "extra == 'unsloth'" },
@@ -1079,18 +1079,12 @@ wheels = [
 
 [[package]]
 name = "llm-client"
-version = "0.1.29"
-source = { git = "https://github.com/xlr8harder/llm_client.git#599b4514aa4349a79aeebfde0dd37dc61a900b6b" }
+version = "0.1.30"
+source = { git = "https://github.com/xlr8harder/llm_client.git#881cccc2c6b24d9ca15cc5eb5221c30c70047a58" }
 dependencies = [
     { name = "pytest" },
     { name = "requests" },
     { name = "urllib3" },
-]
-
-[package.optional-dependencies]
-tinker = [
-    { name = "tinker" },
-    { name = "tinker-cookbook", extra = ["inkling"] },
 ]
 
 [[package]]
