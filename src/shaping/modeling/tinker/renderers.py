@@ -25,12 +25,12 @@ from typing import ClassVar
 import tinker
 import torch
 from tinker_cookbook.renderers import (
-    DeepSeekV3ThinkingRenderer,
-    Qwen3Renderer,
-    GptOssRenderer,
     Message,
 )
+from tinker_cookbook.renderers.deepseek_v3 import DeepSeekV3ThinkingRenderer
+from tinker_cookbook.renderers.gpt_oss import GptOssRenderer
 from tinker_cookbook.renderers.kimi_k2 import KimiK2Renderer
+from tinker_cookbook.renderers.qwen3 import Qwen3Renderer
 from tinker_cookbook.renderers.base import TrainOnWhat
 from tinker_cookbook.tokenizer_utils import Tokenizer
 

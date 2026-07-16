@@ -21,6 +21,7 @@ These are both correct for their respective use cases.
 import pytest
 from transformers import AutoTokenizer
 from tinker_cookbook import renderers
+from tinker_cookbook.renderers.deepseek_v3 import DeepSeekV3ThinkingRenderer
 from tinker_cookbook.tokenizer_utils import get_tokenizer
 
 
@@ -250,13 +251,13 @@ class TestTinkerTrainingFormat:
         - False: preserves thinking in history (for multi-turn RL)
         """
         # With strip_thinking_from_history=True (default)
-        renderer_strip = renderers.DeepSeekV3ThinkingRenderer(
+        renderer_strip = DeepSeekV3ThinkingRenderer(
             tokenizer=tokenizer,
             strip_thinking_from_history=True,
         )
 
         # With strip_thinking_from_history=False
-        renderer_preserve = renderers.DeepSeekV3ThinkingRenderer(
+        renderer_preserve = DeepSeekV3ThinkingRenderer(
             tokenizer=tokenizer,
             strip_thinking_from_history=False,
         )

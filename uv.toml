@@ -1,0 +1,6 @@
+exclude-newer = "7 days"
+
+[exclude-newer-package]
+tinker = "2026-07-16T00:00:00Z"
+tinker-cookbook = "2026-07-16T00:00:00Z"
+tml-renderers = "2026-07-16T00:00:00Z"
