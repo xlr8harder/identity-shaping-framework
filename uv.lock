@@ -919,7 +919,7 @@ dependencies = [
     { name = "dispatcher" },
     { name = "gradio" },
     { name = "jinja2" },
-    { name = "llm-client" },
+    { name = "llm-client", extra = ["tinker"] },
     { name = "mq" },
     { name = "openai" },
     { name = "plotext" },
@@ -960,7 +960,7 @@ requires-dist = [
     { name = "dispatcher", git = "https://github.com/LumiOpen/dispatcher" },
     { name = "gradio", specifier = ">=4.0" },
     { name = "jinja2", specifier = ">=3.0" },
-    { name = "llm-client", git = "https://github.com/xlr8harder/llm_client" },
+    { name = "llm-client", extras = ["tinker"], git = "https://github.com/xlr8harder/llm_client" },
     { name = "mq", git = "https://github.com/xlr8harder/mq" },
     { name = "openai" },
     { name = "peft", marker = "extra == 'unsloth'" },
@@ -1085,6 +1085,12 @@ dependencies = [
     { name = "pytest" },
     { name = "requests" },
     { name = "urllib3" },
+]
+
+[package.optional-dependencies]
+tinker = [
+    { name = "tinker" },
+    { name = "tinker-cookbook", extra = ["inkling"] },
 ]
 
 [[package]]
